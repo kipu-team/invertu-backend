@@ -7,8 +7,11 @@ import com.upc.invertu.excepciones.ReglaNegocioException;
 import com.upc.invertu.seguridad.dtos.request.AuthRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.RecuperarContrasenaRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.RegistroRequestDTO;
+import com.upc.invertu.seguridad.dtos.request.RestablecerContrasenaRequestDTO;
+import com.upc.invertu.seguridad.dtos.request.ValidarTokenRequestDTO;
 import com.upc.invertu.seguridad.dtos.response.AuthResponseDTO;
 import com.upc.invertu.seguridad.dtos.response.RegistroResponseDTO;
+import com.upc.invertu.seguridad.dtos.response.ValidarTokenResponseDTO;
 import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.entidades.Rol;
 import com.upc.invertu.seguridad.entidades.TokenRecuperacion;
@@ -75,6 +78,10 @@ public class AuthServiceImpl implements AuthService {
     public static final String MENSAJE_ESPERA_RECUPERACION = "Debes esperar 1 minuto para reenviar el enlace";
     private static final Duration ESPERA_RECUPERACION = Duration.ofMinutes(1);
     private static final long MINUTOS_VIGENCIA_TOKEN = 30;
+
+    public static final String MENSAJE_ENLACE_VALIDO = "Enlace válido";
+    public static final String MENSAJE_ENLACE_INVALIDO = "El enlace expiró o no es válido";
+    public static final String MENSAJE_CONTRASENA_RESTABLECIDA = "Contraseña restablecida con éxito";
 
     /** END-AUTH-01: registra un estudiante con rol FREE (tema SISTEMA e idioma es_419 por defecto) */
     @Override
@@ -186,5 +193,43 @@ public class AuthServiceImpl implements AuthService {
         }
 
         return new MensajeResponseDTO(MENSAJE_RECUPERACION);
+    }
+
+    /** END-AUTH-04: verifica que el enlace este vigente y sin usar antes de mostrar el formulario */
+    @Override
+    @Transactional(readOnly = true)
+    public ValidarTokenResponseDTO validarToken(ValidarTokenRequestDTO dto) {
+        obtenerTokenVigente(dto.getToken());
+        return new ValidarTokenResponseDTO(true, MENSAJE_ENLACE_VALIDO);
+    }
+
+    /** END-AUTH-05: cambia la contrasena (BCrypt) y marca el token como usado en la misma transaccion */
+    @Override
+    @Transactional
+    public MensajeResponseDTO restablecerContrasena(RestablecerContrasenaRequestDTO dto) {
+        if (!dto.getNuevaContrasena().equals(dto.getConfirmarContrasena())) {
+            throw new ReglaNegocioException("Las contraseñas no coinciden");
+        }
+
+        TokenRecuperacion tokenRecuperacion = obtenerTokenVigente(dto.getToken());
+
+        Estudiante estudiante = tokenRecuperacion.getEstudiante();
+        estudiante.setPasswordHash(passwordEncoder.encode(dto.getNuevaContrasena()));
+        estudianteRepositorio.save(estudiante);
+
+        // El enlace solo sirve una vez
+        tokenRecuperacion.setUsado(true);
+        tokenRecuperacionRepositorio.save(tokenRecuperacion);
+
+        return new MensajeResponseDTO(MENSAJE_CONTRASENA_RESTABLECIDA);
+    }
+
+    /** Inexistente, usado o vencido responden igual (400) para no dar pistas sobre el token */
+    private TokenRecuperacion obtenerTokenVigente(String token) {
+        // En la BD solo esta el hash: se busca por el SHA-256 del token recibido
+        return tokenRecuperacionRepositorio.findByTokenHash(HashUtil.sha256(token.trim()))
+                .filter(t -> !t.getUsado())
+                .filter(t -> t.getFechaExpiracion().isAfter(LocalDateTime.now()))
+                .orElseThrow(() -> new ReglaNegocioException(MENSAJE_ENLACE_INVALIDO));
     }
 }

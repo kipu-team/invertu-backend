@@ -8,8 +8,11 @@ import com.upc.invertu.excepciones.ServicioExternoException;
 import com.upc.invertu.seguridad.dtos.request.AuthRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.RecuperarContrasenaRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.RegistroRequestDTO;
+import com.upc.invertu.seguridad.dtos.request.RestablecerContrasenaRequestDTO;
+import com.upc.invertu.seguridad.dtos.request.ValidarTokenRequestDTO;
 import com.upc.invertu.seguridad.dtos.response.AuthResponseDTO;
 import com.upc.invertu.seguridad.dtos.response.RegistroResponseDTO;
+import com.upc.invertu.seguridad.dtos.response.ValidarTokenResponseDTO;
 import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.entidades.Rol;
 import com.upc.invertu.seguridad.entidades.TokenRecuperacion;
@@ -49,7 +52,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-/** US-01, US-02 y US-03: registro (END-AUTH-01), inicio de sesion (END-AUTH-02) y recuperacion (END-AUTH-03) */
+/**
+ * US-01 a US-04: registro (END-AUTH-01), inicio de sesion (END-AUTH-02), recuperacion (END-AUTH-03)
+ * y restablecimiento de contrasena (END-AUTH-04 y 05)
+ */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
 
@@ -300,5 +306,115 @@ class AuthServiceImplTest {
         assertEquals("Debes esperar 1 minuto para reenviar el enlace", ex.getMessage());
         verify(limiteIntentosService, never()).registrarFallo(anyString(), anyInt(), any());
         verifyNoInteractions(estudianteRepositorio, tokenRecuperacionRepositorio, correoService);
+    }
+
+    // ---------- US-04: restablecer contrasena (END-AUTH-04 y END-AUTH-05) ----------
+
+    private static final String TOKEN = "token-del-enlace";
+
+    private TokenRecuperacion tokenGuardado(boolean usado, LocalDateTime expiracion) {
+        TokenRecuperacion token = new TokenRecuperacion();
+        token.setEstudiante(estudianteAna());
+        token.setTokenHash(HashUtil.sha256(TOKEN));
+        token.setUsado(usado);
+        token.setFechaExpiracion(expiracion);
+        return token;
+    }
+
+    private ValidarTokenRequestDTO validar(String token) {
+        ValidarTokenRequestDTO dto = new ValidarTokenRequestDTO();
+        dto.setToken(token);
+        return dto;
+    }
+
+    private RestablecerContrasenaRequestDTO restablecer(String token, String nueva, String confirmar) {
+        RestablecerContrasenaRequestDTO dto = new RestablecerContrasenaRequestDTO();
+        dto.setToken(token);
+        dto.setNuevaContrasena(nueva);
+        dto.setConfirmarContrasena(confirmar);
+        return dto;
+    }
+
+    @Test
+    void validarTokenVigente_buscaPorHashYRespondeValido() {
+        when(tokenRecuperacionRepositorio.findByTokenHash(HashUtil.sha256(TOKEN)))
+                .thenReturn(Optional.of(tokenGuardado(false, LocalDateTime.now().plusMinutes(10))));
+
+        ValidarTokenResponseDTO respuesta = authService.validarToken(validar(TOKEN));
+
+        assertTrue(respuesta.isValido());
+        assertEquals("Enlace válido", respuesta.getMensaje());
+        verify(tokenRecuperacionRepositorio, never()).findByTokenHash(TOKEN); // nunca busca el original
+    }
+
+    @Test
+    void validarTokenInexistente_lanza400() {
+        when(tokenRecuperacionRepositorio.findByTokenHash(anyString())).thenReturn(Optional.empty());
+
+        ReglaNegocioException ex = assertThrows(ReglaNegocioException.class,
+                () -> authService.validarToken(validar("otro-token")));
+
+        assertEquals("El enlace expiró o no es válido", ex.getMessage());
+    }
+
+    @Test
+    void validarTokenUsado_lanza400() {
+        when(tokenRecuperacionRepositorio.findByTokenHash(HashUtil.sha256(TOKEN)))
+                .thenReturn(Optional.of(tokenGuardado(true, LocalDateTime.now().plusMinutes(10))));
+
+        ReglaNegocioException ex = assertThrows(ReglaNegocioException.class,
+                () -> authService.validarToken(validar(TOKEN)));
+
+        assertEquals("El enlace expiró o no es válido", ex.getMessage());
+    }
+
+    @Test
+    void validarTokenVencido_lanza400() {
+        when(tokenRecuperacionRepositorio.findByTokenHash(HashUtil.sha256(TOKEN)))
+                .thenReturn(Optional.of(tokenGuardado(false, LocalDateTime.now().minusMinutes(1))));
+
+        ReglaNegocioException ex = assertThrows(ReglaNegocioException.class,
+                () -> authService.validarToken(validar(TOKEN)));
+
+        assertEquals("El enlace expiró o no es válido", ex.getMessage());
+    }
+
+    @Test
+    void restablecerExitoso_guardaContrasenaCifradaYMarcaTokenUsado() {
+        TokenRecuperacion token = tokenGuardado(false, LocalDateTime.now().plusMinutes(10));
+        when(tokenRecuperacionRepositorio.findByTokenHash(HashUtil.sha256(TOKEN))).thenReturn(Optional.of(token));
+        when(passwordEncoder.encode("Nueva123!")).thenReturn("hash-bcrypt-nuevo");
+
+        MensajeResponseDTO respuesta = authService.restablecerContrasena(restablecer(TOKEN, "Nueva123!", "Nueva123!"));
+
+        ArgumentCaptor<Estudiante> captor = ArgumentCaptor.forClass(Estudiante.class);
+        verify(estudianteRepositorio).save(captor.capture());
+        assertEquals("hash-bcrypt-nuevo", captor.getValue().getPasswordHash());
+        verify(tokenRecuperacionRepositorio).save(token);
+        assertTrue(token.getUsado());
+        assertEquals("Contraseña restablecida con éxito", respuesta.getMensaje());
+    }
+
+    @Test
+    void restablecerContrasenasDistintas_lanza400SinTocarNada() {
+        ReglaNegocioException ex = assertThrows(ReglaNegocioException.class,
+                () -> authService.restablecerContrasena(restablecer(TOKEN, "Nueva123!", "Otra123!")));
+
+        assertEquals("Las contraseñas no coinciden", ex.getMessage());
+        verifyNoInteractions(tokenRecuperacionRepositorio, estudianteRepositorio, passwordEncoder);
+    }
+
+    @Test
+    void restablecerConTokenVencido_lanza400SinCambiarContrasena() {
+        TokenRecuperacion token = tokenGuardado(false, LocalDateTime.now().minusMinutes(1));
+        when(tokenRecuperacionRepositorio.findByTokenHash(HashUtil.sha256(TOKEN))).thenReturn(Optional.of(token));
+
+        ReglaNegocioException ex = assertThrows(ReglaNegocioException.class,
+                () -> authService.restablecerContrasena(restablecer(TOKEN, "Nueva123!", "Nueva123!")));
+
+        assertEquals("El enlace expiró o no es válido", ex.getMessage());
+        verifyNoInteractions(estudianteRepositorio, passwordEncoder);
+        verify(tokenRecuperacionRepositorio, never()).save(any());
+        assertFalse(token.getUsado());
     }
 }
