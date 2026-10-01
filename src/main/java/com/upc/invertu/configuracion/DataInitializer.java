@@ -7,6 +7,7 @@ import com.upc.invertu.repositorios.CategoriaRepositorio;
 import com.upc.invertu.repositorios.PlanRepositorio;
 import com.upc.invertu.seguridad.repositorios.RolRepositorio;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,16 +32,14 @@ public class DataInitializer implements CommandLineRunner {
             "Alimentación", "Transporte", "Educación", "Entretenimiento", "Salud",
             "Servicios", "Trabajo", "Mesada", "Otros");
 
-    private final RolRepositorio rolRepositorio;
-    private final PlanRepositorio planRepositorio;
-    private final CategoriaRepositorio categoriaRepositorio;
+    @Autowired
+    private RolRepositorio rolRepositorio;
 
-    public DataInitializer(RolRepositorio rolRepositorio, PlanRepositorio planRepositorio,
-                           CategoriaRepositorio categoriaRepositorio) {
-        this.rolRepositorio = rolRepositorio;
-        this.planRepositorio = planRepositorio;
-        this.categoriaRepositorio = categoriaRepositorio;
-    }
+    @Autowired
+    private PlanRepositorio planRepositorio;
+
+    @Autowired
+    private CategoriaRepositorio categoriaRepositorio;
 
     @Override
     @Transactional

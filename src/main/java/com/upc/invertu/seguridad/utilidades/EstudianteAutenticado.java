@@ -3,6 +3,7 @@ package com.upc.invertu.seguridad.utilidades;
 import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.excepciones.RecursoNoEncontradoException;
 import com.upc.invertu.seguridad.repositorios.EstudianteRepositorio;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -15,11 +16,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class EstudianteAutenticado {
 
-    private final EstudianteRepositorio estudianteRepositorio;
-
-    public EstudianteAutenticado(EstudianteRepositorio estudianteRepositorio) {
-        this.estudianteRepositorio = estudianteRepositorio;
-    }
+    @Autowired
+    private EstudianteRepositorio estudianteRepositorio;
 
     public String obtenerCorreo() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
