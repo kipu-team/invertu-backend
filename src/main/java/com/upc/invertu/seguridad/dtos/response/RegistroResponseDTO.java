@@ -1,5 +1,6 @@
 package com.upc.invertu.seguridad.dtos.response;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -8,6 +9,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class RegistroResponseDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
+    private Long idEstudiante;
+    private String nombres;
+    private String correo;
+    private String rol;
 }
