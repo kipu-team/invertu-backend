@@ -3,11 +3,13 @@ package com.upc.invertu.serviciosimpl;
 import com.upc.invertu.dtos.request.MetaRequestDTO;
 import com.upc.invertu.dtos.response.EstadoLimiteResponseDTO;
 import com.upc.invertu.dtos.response.MetaResponseDTO;
+import com.upc.invertu.dtos.response.MetaResumenResponseDTO;
 import com.upc.invertu.entidades.Meta;
 import com.upc.invertu.entidades.Plan;
 import com.upc.invertu.entidades.enums.EstadoMeta;
 import com.upc.invertu.entidades.enums.FrecuenciaAporte;
 import com.upc.invertu.excepciones.LimitePlanException;
+import com.upc.invertu.repositorios.AporteRepositorio;
 import com.upc.invertu.repositorios.MetaRepositorio;
 import com.upc.invertu.repositorios.PlanRepositorio;
 import com.upc.invertu.seguridad.entidades.Estudiante;
@@ -18,7 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.HashMap;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class MetaServiceImpl implements MetaService {
@@ -28,6 +34,9 @@ public class MetaServiceImpl implements MetaService {
 
     @Autowired
     private PlanRepositorio planRepositorio;
+
+    @Autowired
+    private AporteRepositorio aporteRepositorio;
 
     @Autowired
     private EstudianteAutenticado estudianteAutenticado;
@@ -67,6 +76,44 @@ public class MetaServiceImpl implements MetaService {
     @Transactional(readOnly = true)
     public EstadoLimiteResponseDTO consultarEstadoLimite() {
         return calcularEstadoLimite(estudianteAutenticado.obtener());
+    }
+
+    /** END-GOAL-03: metas ACTIVA, de la fecha objetivo mas proxima a la mas lejana, con su progreso */
+    @Override
+    @Transactional(readOnly = true)
+    public List<MetaResumenResponseDTO> listarActivas() {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+        List<Meta> metas = metaRepositorio.findByEstudianteIdEstudianteAndEstadoOrderByFechaObjetivoAsc(
+                idEstudiante, EstadoMeta.ACTIVA);
+        Map<Long, BigDecimal> aportado = obtenerAportadoPorMeta(idEstudiante);
+        LocalDate hoy = LocalDate.now();
+
+        return metas.stream().map(meta -> {
+            BigDecimal montoAportado = aportado.getOrDefault(meta.getIdMeta(), BigDecimal.ZERO);
+            MetaResumenResponseDTO dto = aResumenDTO(meta, montoAportado);
+            dto.setPorcentaje(calcularPorcentaje(montoAportado, meta.getMontoObjetivo()));
+            dto.setFechaObjetivo(meta.getFechaObjetivo());
+            dto.setVencida(meta.getFechaObjetivo().isBefore(hoy));
+            return dto;
+        }).toList();
+    }
+
+    /** END-GOAL-04: metas CUMPLIDA y CANCELADA, de la mas reciente a la mas antigua */
+    @Override
+    @Transactional(readOnly = true)
+    public List<MetaResumenResponseDTO> listarFinalizadas() {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+        List<Meta> metas = metaRepositorio.findByEstudianteIdEstudianteAndEstadoInOrderByFechaActualizacionDesc(
+                idEstudiante, List.of(EstadoMeta.CUMPLIDA, EstadoMeta.CANCELADA));
+        Map<Long, BigDecimal> aportado = obtenerAportadoPorMeta(idEstudiante);
+
+        return metas.stream().map(meta -> {
+            MetaResumenResponseDTO dto = aResumenDTO(meta,
+                    aportado.getOrDefault(meta.getIdMeta(), BigDecimal.ZERO));
+            dto.setEstado(meta.getEstado());
+            dto.setFechaCumplimiento(meta.getFechaCumplimiento());
+            return dto;
+        }).toList();
     }
 
     /**
@@ -122,6 +169,31 @@ public class MetaServiceImpl implements MetaService {
         dto.setMontoAportado(montoAportado);
         dto.setFechaObjetivo(meta.getFechaObjetivo());
         dto.setEstado(meta.getEstado());
+        return dto;
+    }
+
+    // Convierte las filas [idMeta, suma] de aportadoPorMeta en un Map para buscar rapido por idMeta
+    private Map<Long, BigDecimal> obtenerAportadoPorMeta(Long idEstudiante) {
+        Map<Long, BigDecimal> mapa = new HashMap<>();
+        for (Object[] fila : aporteRepositorio.aportadoPorMeta(idEstudiante)) {
+            mapa.put((Long) fila[0], (BigDecimal) fila[1]);
+        }
+        return mapa;
+    }
+
+    // Progreso = aportado / objetivo * 100, con 2 decimales
+    private BigDecimal calcularPorcentaje(BigDecimal aportado, BigDecimal objetivo) {
+        return aportado.multiply(BigDecimal.valueOf(100))
+                .divide(objetivo, 2, RoundingMode.HALF_UP);
+    }
+
+    // Campos comunes a END-GOAL-03 y 04
+    private MetaResumenResponseDTO aResumenDTO(Meta meta, BigDecimal montoAportado) {
+        MetaResumenResponseDTO dto = new MetaResumenResponseDTO();
+        dto.setIdMeta(meta.getIdMeta());
+        dto.setNombre(meta.getNombre());
+        dto.setMontoObjetivo(meta.getMontoObjetivo());
+        dto.setMontoAportado(montoAportado);
         return dto;
     }
 }
