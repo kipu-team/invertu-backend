@@ -5,12 +5,19 @@ import com.upc.invertu.dtos.response.MensajeResponseDTO;
 import com.upc.invertu.dtos.response.MovimientoDetalleResponseDTO;
 import com.upc.invertu.dtos.response.MovimientoListaResponseDTO;
 import com.upc.invertu.dtos.response.MovimientoResponseDTO;
+import com.upc.invertu.entidades.enums.Clasificacion;
+import com.upc.invertu.entidades.enums.MedioPago;
+import com.upc.invertu.entidades.enums.TipoMovimiento;
 
 /** EP-03: ingresos y gastos */
 public interface MovimientoService {
-    MovimientoResponseDTO registrar(MovimientoRequestDTO dto);
-    MovimientoListaResponseDTO listarDelMes(int anio, int mes);       // END-TRX-01
-    MovimientoDetalleResponseDTO obtenerDetalle(Long idMovimiento);   // END-TRX-04
+    MovimientoResponseDTO registrar(MovimientoRequestDTO dto);                       // END-TRX-02
+
+    MovimientoListaResponseDTO listarDelMes(int anio, int mes, String busqueda, TipoMovimiento tipo,
+                                            Clasificacion clasificacion, Long idCategoria,
+                                            MedioPago medioPago);                    // END-TRX-01
+
+    MovimientoDetalleResponseDTO obtenerDetalle(Long idMovimiento);                  // END-TRX-04
     MovimientoResponseDTO actualizar(Long idMovimiento, MovimientoRequestDTO dto);   // END-TRX-05
-    MensajeResponseDTO eliminar(Long idMovimiento);                   // END-TRX-06
+    MensajeResponseDTO eliminar(Long idMovimiento);                                  // END-TRX-06
 }

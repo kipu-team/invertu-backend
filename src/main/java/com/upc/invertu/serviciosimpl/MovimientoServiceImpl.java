@@ -5,7 +5,9 @@ import com.upc.invertu.dtos.response.*;
 import com.upc.invertu.entidades.Categoria;
 import com.upc.invertu.entidades.Movimiento;
 import com.upc.invertu.entidades.Suscripcion;
+import com.upc.invertu.entidades.enums.Clasificacion;
 import com.upc.invertu.entidades.enums.EstadoSuscripcion;
+import com.upc.invertu.entidades.enums.MedioPago;
 import com.upc.invertu.entidades.enums.TipoMovimiento;
 import com.upc.invertu.excepciones.RecursoNoEncontradoException;
 import com.upc.invertu.excepciones.ReglaNegocioException;
@@ -51,26 +53,32 @@ public class MovimientoServiceImpl implements MovimientoService {
         return aDTO(movimientoRepositorio.save(movimiento));
     }
 
-    /** END-TRX-01: movimientos del mes del estudiante autenticado */
+    /** END-TRX-01: movimientos del mes con busqueda y filtros opcionales (US-10 y US-14) */
     @Override
     @Transactional(readOnly = true)
-    public MovimientoListaResponseDTO listarDelMes(int anio, int mes) {
+    public MovimientoListaResponseDTO listarDelMes(int anio, int mes, String busqueda, TipoMovimiento tipo,
+                                                   Clasificacion clasificacion, Long idCategoria,
+                                                   MedioPago medioPago) {
         if (mes < 1 || mes > 12) {
             throw new ReglaNegocioException("Datos inválidos");
         }
         Estudiante estudiante = estudianteAutenticado.obtener();
 
+        // Sin busqueda se envia "" para que el LIKE '%%' coincida con todo
+        String texto = (busqueda == null) ? "" : busqueda.trim();
+
         // YearMonth calcula el primer y ultimo dia del mes (28, 29, 30 o 31)
         YearMonth periodo = YearMonth.of(anio, mes);
         List<MovimientoItemResponseDTO> movimientos = movimientoRepositorio
-                .listarDelMes(estudiante.getIdEstudiante(), periodo.atDay(1), periodo.atEndOfMonth())
+                .buscar(estudiante.getIdEstudiante(), periodo.atDay(1), periodo.atEndOfMonth(),
+                        texto, tipo, clasificacion, idCategoria, medioPago)
                 .stream()
                 .map(this::aItemDTO)
                 .toList();
 
         MovimientoListaResponseDTO respuesta = new MovimientoListaResponseDTO();
         respuesta.setTotal(movimientos.size());
-        respuesta.setMovimientos(movimientos); // lista vacia si no hay movimientos
+        respuesta.setMovimientos(movimientos); // lista vacia si no hay coincidencias
         return respuesta;
     }
 
