@@ -1,6 +1,7 @@
 package com.upc.invertu.controladores;
 
 import com.upc.invertu.dtos.request.MovimientoRequestDTO;
+import com.upc.invertu.dtos.response.MensajeResponseDTO;
 import com.upc.invertu.dtos.response.MovimientoDetalleResponseDTO;
 import com.upc.invertu.dtos.response.MovimientoListaResponseDTO;
 import com.upc.invertu.dtos.response.MovimientoResponseDTO;
@@ -45,5 +46,11 @@ public class MovimientoController {
     public ResponseEntity<MovimientoResponseDTO> actualizar(@PathVariable Long id,
                                                             @Valid @RequestBody MovimientoRequestDTO dto) {
         return ResponseEntity.ok(movimientoService.actualizar(id, dto));
+    }
+    /** END-TRX-06: elimina un movimiento propio (Free y Premium). 404 si no existe o es de otro estudiante */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<MensajeResponseDTO> eliminar(@PathVariable Long id) {
+        return ResponseEntity.ok(movimientoService.eliminar(id));
     }
 }
