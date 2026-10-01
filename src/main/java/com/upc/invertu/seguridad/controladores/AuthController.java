@@ -1,5 +1,14 @@
 package com.upc.invertu.seguridad.controladores;
 
+import com.upc.invertu.seguridad.dtos.request.RegistroRequestDTO;
+import com.upc.invertu.seguridad.dtos.response.RegistroResponseDTO;
+import com.upc.invertu.seguridad.servicios.AuthService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -7,5 +16,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/autenticacion")
 public class AuthController {
-    // TODO: endpoints del modulo
+    @Autowired
+    private AuthService authService;
+
+    /** END-AUTH-01: registra una cuenta de estudiante con plan FREE */
+    @PostMapping("/registro")
+    public ResponseEntity<RegistroResponseDTO> registrar(@Valid @RequestBody RegistroRequestDTO dto) {
+        // @Valid aplica las validaciones del DTO -> 400 si fallan
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrar(dto));
+    }
 }
