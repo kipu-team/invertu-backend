@@ -4,10 +4,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 /** END-TRX-01 */
 @Getter
 @Setter
 @NoArgsConstructor
 public class MovimientoListaResponseDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
+    private int total;
+    private List<MovimientoItemResponseDTO> movimientos;
 }
