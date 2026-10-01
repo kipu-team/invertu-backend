@@ -1,19 +1,26 @@
 package com.upc.invertu.unitarias;
 
+import com.upc.invertu.dtos.response.MensajeResponseDTO;
 import com.upc.invertu.excepciones.ConflictoException;
 import com.upc.invertu.excepciones.LimiteIntentosException;
 import com.upc.invertu.excepciones.ReglaNegocioException;
+import com.upc.invertu.excepciones.ServicioExternoException;
 import com.upc.invertu.seguridad.dtos.request.AuthRequestDTO;
+import com.upc.invertu.seguridad.dtos.request.RecuperarContrasenaRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.RegistroRequestDTO;
 import com.upc.invertu.seguridad.dtos.response.AuthResponseDTO;
 import com.upc.invertu.seguridad.dtos.response.RegistroResponseDTO;
 import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.entidades.Rol;
+import com.upc.invertu.seguridad.entidades.TokenRecuperacion;
 import com.upc.invertu.seguridad.repositorios.EstudianteRepositorio;
 import com.upc.invertu.seguridad.repositorios.RolRepositorio;
+import com.upc.invertu.seguridad.repositorios.TokenRecuperacionRepositorio;
 import com.upc.invertu.seguridad.servicios.LimiteIntentosService;
 import com.upc.invertu.seguridad.serviciosimpl.AuthServiceImpl;
+import com.upc.invertu.seguridad.utilidades.HashUtil;
 import com.upc.invertu.seguridad.utilidades.JwtUtil;
+import com.upc.invertu.servicios.CorreoService;
 import com.upc.invertu.entidades.enums.Idioma;
 import com.upc.invertu.entidades.enums.Tema;
 import org.junit.jupiter.api.Test;
@@ -28,17 +35,21 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-/** US-01 y US-02: registro (END-AUTH-01) e inicio de sesion (END-AUTH-02) */
+/** US-01, US-02 y US-03: registro (END-AUTH-01), inicio de sesion (END-AUTH-02) y recuperacion (END-AUTH-03) */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
 
@@ -59,6 +70,12 @@ class AuthServiceImplTest {
 
     @Mock
     private LimiteIntentosService limiteIntentosService;
+
+    @Mock
+    private TokenRecuperacionRepositorio tokenRecuperacionRepositorio;
+
+    @Mock
+    private CorreoService correoService;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -196,5 +213,92 @@ class AuthServiceImplTest {
         assertEquals("Demasiados intentos fallidos. Intenta nuevamente en 15 minutos", ex.getMessage());
         verifyNoInteractions(authenticationManager, jwtUtil);
         verify(limiteIntentosService, never()).registrarFallo(anyString(), anyInt(), any());
+    }
+
+    // ---------- US-03: solicitar enlace de recuperacion (END-AUTH-03) ----------
+
+    private RecuperarContrasenaRequestDTO recuperar(String correo) {
+        ReflectionTestUtils.setField(authService, "frontendUrl", "http://localhost:4200,http://otro.com");
+        RecuperarContrasenaRequestDTO dto = new RecuperarContrasenaRequestDTO();
+        dto.setCorreo(correo);
+        return dto;
+    }
+
+    private Estudiante estudianteAna() {
+        Estudiante estudiante = new Estudiante();
+        estudiante.setIdEstudiante(1L);
+        estudiante.setNombres("Ana");
+        estudiante.setCorreo("ana@upc.edu.pe");
+        return estudiante;
+    }
+
+    @Test
+    void recuperacionCorreoRegistrado_invalidaAnterioresGuardaHashYEnviaEnlace() {
+        when(estudianteRepositorio.findByCorreoConRol("ana@upc.edu.pe")).thenReturn(Optional.of(estudianteAna()));
+        LocalDateTime antes = LocalDateTime.now();
+
+        MensajeResponseDTO respuesta = authService.solicitarRecuperacion(recuperar(" Ana@UPC.edu.pe "));
+
+        verify(limiteIntentosService).verificarBloqueo("recuperar:ana@upc.edu.pe", AuthServiceImpl.MENSAJE_ESPERA_RECUPERACION);
+        verify(limiteIntentosService).registrarFallo("recuperar:ana@upc.edu.pe", 1, Duration.ofMinutes(1));
+        verify(tokenRecuperacionRepositorio).invalidarTokensVigentes(1L);
+
+        ArgumentCaptor<TokenRecuperacion> tokenCaptor = ArgumentCaptor.forClass(TokenRecuperacion.class);
+        verify(tokenRecuperacionRepositorio).save(tokenCaptor.capture());
+        TokenRecuperacion guardado = tokenCaptor.getValue();
+
+        ArgumentCaptor<String> enlaceCaptor = ArgumentCaptor.forClass(String.class);
+        verify(correoService).enviarRecuperacion(eq("ana@upc.edu.pe"), eq("Ana"), enlaceCaptor.capture(), eq(30L));
+        String enlace = enlaceCaptor.getValue();
+        String prefijo = "http://localhost:4200/restablecer-contrasena?token=";
+        assertTrue(enlace.startsWith(prefijo));
+        String tokenOriginal = enlace.substring(prefijo.length());
+
+        // En la BD solo el hash del token que viaja en el enlace
+        assertNotEquals(tokenOriginal, guardado.getTokenHash());
+        assertEquals(HashUtil.sha256(tokenOriginal), guardado.getTokenHash());
+        assertEquals(1L, guardado.getEstudiante().getIdEstudiante());
+        assertFalse(guardado.getUsado());
+        assertFalse(guardado.getFechaExpiracion().isBefore(antes.plusMinutes(30)));
+        assertTrue(guardado.getFechaExpiracion().isBefore(LocalDateTime.now().plusMinutes(31)));
+
+        assertEquals("Si el correo está registrado, recibirás un enlace", respuesta.getMensaje());
+    }
+
+    @Test
+    void recuperacionCorreoNoRegistrado_mismaRespuestaSinTokenNiCorreo() {
+        when(estudianteRepositorio.findByCorreoConRol("nadie@upc.edu.pe")).thenReturn(Optional.empty());
+
+        MensajeResponseDTO respuesta = authService.solicitarRecuperacion(recuperar("nadie@upc.edu.pe"));
+
+        assertEquals("Si el correo está registrado, recibirás un enlace", respuesta.getMensaje());
+        verify(limiteIntentosService).registrarFallo("recuperar:nadie@upc.edu.pe", 1, Duration.ofMinutes(1));
+        verifyNoInteractions(tokenRecuperacionRepositorio, correoService);
+    }
+
+    @Test
+    void recuperacionFalloDelCorreo_respondeIgual200ConTokenGuardado() {
+        when(estudianteRepositorio.findByCorreoConRol("ana@upc.edu.pe")).thenReturn(Optional.of(estudianteAna()));
+        doThrow(new ServicioExternoException("No se pudo enviar el correo"))
+                .when(correoService).enviarRecuperacion(anyString(), anyString(), anyString(), anyLong());
+
+        MensajeResponseDTO respuesta = authService.solicitarRecuperacion(recuperar("ana@upc.edu.pe"));
+
+        assertEquals("Si el correo está registrado, recibirás un enlace", respuesta.getMensaje());
+        verify(tokenRecuperacionRepositorio).save(any(TokenRecuperacion.class));
+    }
+
+    @Test
+    void recuperacionAntesDeUnMinuto_lanza429SinConsultarNiEnviar() {
+        doThrow(new LimiteIntentosException(AuthServiceImpl.MENSAJE_ESPERA_RECUPERACION))
+                .when(limiteIntentosService)
+                .verificarBloqueo("recuperar:ana@upc.edu.pe", AuthServiceImpl.MENSAJE_ESPERA_RECUPERACION);
+
+        LimiteIntentosException ex = assertThrows(LimiteIntentosException.class,
+                () -> authService.solicitarRecuperacion(recuperar("ana@upc.edu.pe")));
+
+        assertEquals("Debes esperar 1 minuto para reenviar el enlace", ex.getMessage());
+        verify(limiteIntentosService, never()).registrarFallo(anyString(), anyInt(), any());
+        verifyNoInteractions(estudianteRepositorio, tokenRecuperacionRepositorio, correoService);
     }
 }

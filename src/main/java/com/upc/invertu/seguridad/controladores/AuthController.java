@@ -1,6 +1,8 @@
 package com.upc.invertu.seguridad.controladores;
 
+import com.upc.invertu.dtos.response.MensajeResponseDTO;
 import com.upc.invertu.seguridad.dtos.request.AuthRequestDTO;
+import com.upc.invertu.seguridad.dtos.request.RecuperarContrasenaRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.RegistroRequestDTO;
 import com.upc.invertu.seguridad.dtos.response.AuthResponseDTO;
 import com.upc.invertu.seguridad.dtos.response.RegistroResponseDTO;
@@ -32,5 +34,11 @@ public class AuthController {
     @PostMapping("/iniciar-sesion")
     public ResponseEntity<AuthResponseDTO> iniciarSesion(@Valid @RequestBody AuthRequestDTO dto) {
         return ResponseEntity.ok(authService.iniciarSesion(dto));
+    }
+
+    /** END-AUTH-03: envia el enlace de recuperacion (misma respuesta aunque el correo no exista) */
+    @PostMapping("/recuperar-contrasena")
+    public ResponseEntity<MensajeResponseDTO> recuperarContrasena(@Valid @RequestBody RecuperarContrasenaRequestDTO dto) {
+        return ResponseEntity.ok(authService.solicitarRecuperacion(dto));
     }
 }
