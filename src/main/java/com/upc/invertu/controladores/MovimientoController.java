@@ -1,5 +1,15 @@
 package com.upc.invertu.controladores;
 
+import com.upc.invertu.dtos.request.MovimientoRequestDTO;
+import com.upc.invertu.dtos.response.MovimientoResponseDTO;
+import com.upc.invertu.servicios.MovimientoService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -7,5 +17,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/movimientos")
 public class MovimientoController {
-    // TODO: endpoints del modulo
+    @Autowired
+    private MovimientoService movimientoService;
+
+    /** END-TRX-02: registra un ingreso o gasto (Free y Premium) */
+    @PostMapping
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<MovimientoResponseDTO> registrar(@Valid @RequestBody MovimientoRequestDTO dto) {
+        // @Valid aplica las validaciones del DTO -> 400 si fallan
+        return ResponseEntity.status(HttpStatus.CREATED).body(movimientoService.registrar(dto));
+    }
 }
