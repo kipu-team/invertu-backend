@@ -1,12 +1,16 @@
 package com.upc.invertu.serviciosimpl;
 
 import com.upc.invertu.dtos.request.MovimientoRequestDTO;
+import com.upc.invertu.dtos.response.MovimientoDetalleResponseDTO;
+import com.upc.invertu.dtos.response.MovimientoItemResponseDTO;
+import com.upc.invertu.dtos.response.MovimientoListaResponseDTO;
 import com.upc.invertu.dtos.response.MovimientoResponseDTO;
 import com.upc.invertu.entidades.Categoria;
 import com.upc.invertu.entidades.Movimiento;
 import com.upc.invertu.entidades.Suscripcion;
 import com.upc.invertu.entidades.enums.EstadoSuscripcion;
 import com.upc.invertu.entidades.enums.TipoMovimiento;
+import com.upc.invertu.excepciones.RecursoNoEncontradoException;
 import com.upc.invertu.excepciones.ReglaNegocioException;
 import com.upc.invertu.repositorios.CategoriaRepositorio;
 import com.upc.invertu.repositorios.MovimientoRepositorio;
@@ -17,6 +21,9 @@ import com.upc.invertu.servicios.MovimientoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.YearMonth;
+import java.util.List;
 
 @Service
 public class MovimientoServiceImpl implements MovimientoService {
@@ -45,6 +52,50 @@ public class MovimientoServiceImpl implements MovimientoService {
         aplicarDatos(movimiento, dto, estudiante.getIdEstudiante());
 
         return aDTO(movimientoRepositorio.save(movimiento));
+    }
+
+    /** END-TRX-01: movimientos del mes del estudiante autenticado */
+    @Override
+    @Transactional(readOnly = true)
+    public MovimientoListaResponseDTO listarDelMes(int anio, int mes) {
+        if (mes < 1 || mes > 12) {
+            throw new ReglaNegocioException("Datos inválidos");
+        }
+        Estudiante estudiante = estudianteAutenticado.obtener();
+
+        // YearMonth calcula el primer y ultimo dia del mes (28, 29, 30 o 31)
+        YearMonth periodo = YearMonth.of(anio, mes);
+        List<MovimientoItemResponseDTO> movimientos = movimientoRepositorio
+                .listarDelMes(estudiante.getIdEstudiante(), periodo.atDay(1), periodo.atEndOfMonth())
+                .stream()
+                .map(this::aItemDTO)
+                .toList();
+
+        MovimientoListaResponseDTO respuesta = new MovimientoListaResponseDTO();
+        respuesta.setTotal(movimientos.size());
+        respuesta.setMovimientos(movimientos); // lista vacia si no hay movimientos
+        return respuesta;
+    }
+
+    /** END-TRX-04: detalle de un movimiento propio */
+    @Override
+    @Transactional(readOnly = true)
+    public MovimientoDetalleResponseDTO obtenerDetalle(Long idMovimiento) {
+        Movimiento movimiento = buscarPropio(idMovimiento);
+
+        MovimientoDetalleResponseDTO dto = new MovimientoDetalleResponseDTO();
+        dto.setIdMovimiento(movimiento.getIdMovimiento());
+        dto.setTipo(movimiento.getTipo());
+        dto.setClasificacion(movimiento.getClasificacion());
+        dto.setDescripcion(movimiento.getDescripcion());
+        dto.setFecha(movimiento.getFecha());
+        dto.setMonto(movimiento.getMonto());
+        dto.setCategoria(movimiento.getCategoria().getNombre());
+        dto.setMedioPago(movimiento.getMedioPago());
+        dto.setSuscripcion(nombreSuscripcion(movimiento));
+        // Pendiente T-47: generar el enlace temporal (5 min) cuando existan comprobantes
+        dto.setUrlComprobante(null);
+        return dto;
     }
 
     /**
@@ -86,11 +137,40 @@ public class MovimientoServiceImpl implements MovimientoService {
         dto.setFecha(movimiento.getFecha());
         dto.setMonto(movimiento.getMonto());
         dto.setCategoria(movimiento.getCategoria().getNombre());
-        // Se envia el nombre del servicio, o null si el movimiento no es pago de una suscripcion
-        dto.setSuscripcion(movimiento.getSuscripcion() != null
-                ? movimiento.getSuscripcion().getNombreServicio()
-                : null);
+        dto.setSuscripcion(nombreSuscripcion(movimiento));
         dto.setTieneComprobante(movimiento.getUrlComprobante() != null);
         return dto;
     }
+    /**
+     * Busca un movimiento solo si es del estudiante autenticado; si no, 404.
+     * Se reutilizara en la edicion (T-16) y eliminacion (T-18).
+     */
+    private Movimiento buscarPropio(Long idMovimiento) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+        return movimientoRepositorio.findByIdMovimientoAndEstudianteIdEstudiante(idMovimiento, idEstudiante)
+                .orElseThrow(() -> new RecursoNoEncontradoException("El movimiento no existe"));
+    }
+
+    private MovimientoItemResponseDTO aItemDTO(Movimiento movimiento) {
+        MovimientoItemResponseDTO dto = new MovimientoItemResponseDTO();
+        dto.setIdMovimiento(movimiento.getIdMovimiento());
+        dto.setFecha(movimiento.getFecha());
+        dto.setDescripcion(movimiento.getDescripcion());
+        dto.setCategoria(movimiento.getCategoria().getNombre());
+        dto.setTipo(movimiento.getTipo());
+        dto.setClasificacion(movimiento.getClasificacion());
+        dto.setMonto(movimiento.getMonto());
+        dto.setMedioPago(movimiento.getMedioPago());
+        dto.setSuscripcion(nombreSuscripcion(movimiento));
+        dto.setTieneComprobante(movimiento.getUrlComprobante() != null);
+        return dto;
+    }
+
+    // Nombre del servicio si el movimiento es pago de una suscripcion; si no, null
+    private String nombreSuscripcion(Movimiento movimiento) {
+        return movimiento.getSuscripcion() != null
+                ? movimiento.getSuscripcion().getNombreServicio()
+                : null;
+    }
+
 }
