@@ -33,6 +33,7 @@ public class SuscripcionController {
         return ResponseEntity.ok(suscripcionService.obtenerSuscripcionesPorEstudiante(estudianteId));
     }
 
+
     @PutMapping("/{id}")
     public ResponseEntity<SuscripcionResponseDTO> actualizarSuscripcion(
             @PathVariable Long id,
@@ -51,4 +52,6 @@ public class SuscripcionController {
         suscripcionService.reactivarSuscripcion(id);
         return ResponseEntity.ok().build();
     }
+
+
 }

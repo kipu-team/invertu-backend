@@ -12,6 +12,7 @@ public interface SuscripcionRepositorio extends JpaRepository<Suscripcion, Long>
     Optional<Suscripcion> findByIdSuscripcionAndEstudianteIdEstudianteAndEstado(
             Long idSuscripcion, Long idEstudiante, EstadoSuscripcion estado);
 
-    // AGREGAR ESTA LÍNEA:
     List<Suscripcion> findByEstudianteIdEstudiante(Long idEstudiante);
+
+    List<Suscripcion> findByEstudianteIdEstudianteAndEstado(Long idEstudiante, EstadoSuscripcion estado);
 }
