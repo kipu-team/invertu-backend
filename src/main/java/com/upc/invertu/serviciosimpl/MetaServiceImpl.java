@@ -1,14 +1,13 @@
 package com.upc.invertu.serviciosimpl;
 
 import com.upc.invertu.dtos.request.MetaRequestDTO;
-import com.upc.invertu.dtos.response.EstadoLimiteResponseDTO;
-import com.upc.invertu.dtos.response.MetaResponseDTO;
-import com.upc.invertu.dtos.response.MetaResumenResponseDTO;
+import com.upc.invertu.dtos.response.*;
 import com.upc.invertu.entidades.Meta;
 import com.upc.invertu.entidades.Plan;
 import com.upc.invertu.entidades.enums.EstadoMeta;
 import com.upc.invertu.entidades.enums.FrecuenciaAporte;
 import com.upc.invertu.excepciones.LimitePlanException;
+import com.upc.invertu.excepciones.RecursoNoEncontradoException;
 import com.upc.invertu.repositorios.AporteRepositorio;
 import com.upc.invertu.repositorios.MetaRepositorio;
 import com.upc.invertu.repositorios.PlanRepositorio;
@@ -115,6 +114,67 @@ public class MetaServiceImpl implements MetaService {
             return dto;
         }).toList();
     }
+    /** END-GOAL-05: detalle de una meta propia con su progreso */
+    @Override
+    @Transactional(readOnly = true)
+    public MetaDetalleResponseDTO obtenerDetalle(Long idMeta) {
+        Meta meta = buscarPropia(idMeta);
+        BigDecimal aportado = sumarAportes(idMeta);
+
+        MetaDetalleResponseDTO dto = new MetaDetalleResponseDTO();
+        dto.setIdMeta(meta.getIdMeta());
+        dto.setNombre(meta.getNombre());
+        dto.setDescripcion(meta.getDescripcion());
+        dto.setMontoObjetivo(meta.getMontoObjetivo());
+        dto.setMontoAportado(aportado);
+        dto.setPorcentaje(calcularPorcentaje(aportado, meta.getMontoObjetivo()));
+        dto.setFechaObjetivo(meta.getFechaObjetivo());
+        dto.setFrecuenciaAporte(meta.getFrecuenciaAporte());
+        dto.setProximaFechaAporte(meta.getProximaFechaAporte());
+        dto.setEstado(meta.getEstado());
+        // Solo una meta ACTIVA puede estar vencida; las CUMPLIDA y CANCELADA ya terminaron
+        dto.setVencida(meta.getEstado() == EstadoMeta.ACTIVA
+                && meta.getFechaObjetivo().isBefore(LocalDate.now()));
+        return dto;
+    }
+
+    /**
+     * END-GOAL-07 (solo Premium, validado en el controller):
+     * estima cuando se cumplira la meta si el estudiante sigue aportando su promedio con su frecuencia.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ProyeccionResponseDTO obtenerProyeccion(Long idMeta) {
+        Meta meta = buscarPropia(idMeta);
+
+        if (meta.getEstado() == EstadoMeta.CUMPLIDA) {
+            return new ProyeccionResponseDTO(meta.getFechaCumplimiento(), "La meta ya fue cumplida");
+        }
+        if (meta.getEstado() == EstadoMeta.CANCELADA) {
+            return new ProyeccionResponseDTO(null, "La meta está cancelada");
+        }
+
+        int cantidadAportes = aporteRepositorio.findByMetaIdMetaOrderByFechaAsc(idMeta).size();
+        if (cantidadAportes == 0) {
+            return new ProyeccionResponseDTO(null, "Aún no hay aportes suficientes para estimar");
+        }
+        if (meta.getFrecuenciaAporte() == FrecuenciaAporte.SIN_FRECUENCIA) {
+            return new ProyeccionResponseDTO(null, "Define una frecuencia de aporte para estimar la fecha");
+        }
+
+        BigDecimal aportado = sumarAportes(idMeta);
+        BigDecimal restante = meta.getMontoObjetivo().subtract(aportado);
+        BigDecimal promedio = aportado.divide(BigDecimal.valueOf(cantidadAportes), 2, RoundingMode.HALF_UP);
+
+        // Cuantos aportes promedio faltan; se redondea hacia arriba (si falta medio aporte, es un aporte mas)
+        int aportesFaltantes = restante.divide(promedio, 0, RoundingMode.CEILING).intValue();
+        LocalDate fechaEstimada = sumarPeriodos(LocalDate.now(), meta.getFrecuenciaAporte(), aportesFaltantes);
+
+        String mensaje = fechaEstimada.isAfter(meta.getFechaObjetivo())
+                ? "Al ritmo actual cumplirías tu meta después de la fecha objetivo"
+                : "Al ritmo actual cumplirías tu meta a tiempo";
+        return new ProyeccionResponseDTO(fechaEstimada, mensaje);
+    }
 
     /**
      * Compara las metas ACTIVA del estudiante con el limite de su plan.
@@ -196,4 +256,28 @@ public class MetaServiceImpl implements MetaService {
         dto.setMontoAportado(montoAportado);
         return dto;
     }
+
+    /** Busca una meta solo si es del estudiante autenticado; si no, 404. */
+    private Meta buscarPropia(Long idMeta) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+        return metaRepositorio.findByIdMetaAndEstudianteIdEstudiante(idMeta, idEstudiante)
+                .orElseThrow(() -> new RecursoNoEncontradoException("La meta no existe"));
+    }
+
+    // SUM devuelve null cuando la meta no tiene aportes: en ese caso el total es 0
+    private BigDecimal sumarAportes(Long idMeta) {
+        BigDecimal suma = aporteRepositorio.sumarAportes(idMeta);
+        return suma != null ? suma : BigDecimal.ZERO;
+    }
+
+    // Avanza una fecha la cantidad de periodos indicada segun la frecuencia
+    private LocalDate sumarPeriodos(LocalDate desde, FrecuenciaAporte frecuencia, int periodos) {
+        return switch (frecuencia) {
+            case DIARIA -> desde.plusDays(periodos);
+            case SEMANAL -> desde.plusWeeks(periodos);
+            case MENSUAL -> desde.plusMonths(periodos);
+            case SIN_FRECUENCIA -> desde;
+        };
+    }
+
 }
