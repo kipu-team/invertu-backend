@@ -1,9 +1,7 @@
 package com.upc.invertu.controladores;
 
 import com.upc.invertu.dtos.request.MetaRequestDTO;
-import com.upc.invertu.dtos.response.EstadoLimiteResponseDTO;
-import com.upc.invertu.dtos.response.MetaResponseDTO;
-import com.upc.invertu.dtos.response.MetaResumenResponseDTO;
+import com.upc.invertu.dtos.response.*;
 import com.upc.invertu.servicios.MetaService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,5 +46,19 @@ public class MetaController {
     @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
     public ResponseEntity<List<MetaResumenResponseDTO>> listarFinalizadas() {
         return ResponseEntity.ok(metaService.listarFinalizadas());
+    }
+
+    /** END-GOAL-05: detalle de una meta propia (Free y Premium). 404 si no existe o es de otro estudiante */
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<MetaDetalleResponseDTO> obtenerDetalle(@PathVariable Long id) {
+        return ResponseEntity.ok(metaService.obtenerDetalle(id));
+    }
+
+    /** END-GOAL-07: fecha estimada de cumplimiento (solo Premium). Free recibe 403 */
+    @GetMapping("/{id}/proyeccion")
+    @PreAuthorize("hasRole('PREMIUM')")
+    public ResponseEntity<ProyeccionResponseDTO> obtenerProyeccion(@PathVariable Long id) {
+        return ResponseEntity.ok(metaService.obtenerProyeccion(id));
     }
 }
