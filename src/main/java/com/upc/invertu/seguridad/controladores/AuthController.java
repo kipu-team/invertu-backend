@@ -4,8 +4,11 @@ import com.upc.invertu.dtos.response.MensajeResponseDTO;
 import com.upc.invertu.seguridad.dtos.request.AuthRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.RecuperarContrasenaRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.RegistroRequestDTO;
+import com.upc.invertu.seguridad.dtos.request.RestablecerContrasenaRequestDTO;
+import com.upc.invertu.seguridad.dtos.request.ValidarTokenRequestDTO;
 import com.upc.invertu.seguridad.dtos.response.AuthResponseDTO;
 import com.upc.invertu.seguridad.dtos.response.RegistroResponseDTO;
+import com.upc.invertu.seguridad.dtos.response.ValidarTokenResponseDTO;
 import com.upc.invertu.seguridad.servicios.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,5 +43,17 @@ public class AuthController {
     @PostMapping("/recuperar-contrasena")
     public ResponseEntity<MensajeResponseDTO> recuperarContrasena(@Valid @RequestBody RecuperarContrasenaRequestDTO dto) {
         return ResponseEntity.ok(authService.solicitarRecuperacion(dto));
+    }
+
+    /** END-AUTH-04: valida que el enlace este vigente y sin usar (el token va en el body) */
+    @PostMapping("/restablecer-contrasena/validar")
+    public ResponseEntity<ValidarTokenResponseDTO> validarToken(@Valid @RequestBody ValidarTokenRequestDTO dto) {
+        return ResponseEntity.ok(authService.validarToken(dto));
+    }
+
+    /** END-AUTH-05: restablece la contrasena con el token del enlace */
+    @PostMapping("/restablecer-contrasena")
+    public ResponseEntity<MensajeResponseDTO> restablecerContrasena(@Valid @RequestBody RestablecerContrasenaRequestDTO dto) {
+        return ResponseEntity.ok(authService.restablecerContrasena(dto));
     }
 }

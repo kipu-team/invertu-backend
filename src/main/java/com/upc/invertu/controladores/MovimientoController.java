@@ -5,6 +5,9 @@ import com.upc.invertu.dtos.response.MensajeResponseDTO;
 import com.upc.invertu.dtos.response.MovimientoDetalleResponseDTO;
 import com.upc.invertu.dtos.response.MovimientoListaResponseDTO;
 import com.upc.invertu.dtos.response.MovimientoResponseDTO;
+import com.upc.invertu.entidades.enums.Clasificacion;
+import com.upc.invertu.entidades.enums.MedioPago;
+import com.upc.invertu.entidades.enums.TipoMovimiento;
 import com.upc.invertu.servicios.MovimientoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/movimientos")
 public class MovimientoController {
+
     @Autowired
     private MovimientoService movimientoService;
 
@@ -27,11 +31,23 @@ public class MovimientoController {
         // @Valid aplica las validaciones del DTO -> 400 si fallan
         return ResponseEntity.status(HttpStatus.CREATED).body(movimientoService.registrar(dto));
     }
-    /** END-TRX-01: movimientos del mes (Free y Premium). Ej: ?anio=2026&mes=9 */
+
+    /**
+     * END-TRX-01: movimientos del mes con busqueda y filtros opcionales (Free y Premium).
+     * Ej: ?anio=2026&mes=9&busqueda=almuerzo&tipo=GASTO
+     */
     @GetMapping
     @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
-    public ResponseEntity<MovimientoListaResponseDTO> listar(@RequestParam int anio, @RequestParam int mes) {
-        return ResponseEntity.ok(movimientoService.listarDelMes(anio, mes));
+    public ResponseEntity<MovimientoListaResponseDTO> listar(
+            @RequestParam int anio,
+            @RequestParam int mes,
+            @RequestParam(required = false) String busqueda,
+            @RequestParam(required = false) TipoMovimiento tipo,
+            @RequestParam(required = false) Clasificacion clasificacion,
+            @RequestParam(required = false) Long idCategoria,
+            @RequestParam(required = false) MedioPago medioPago) {
+        return ResponseEntity.ok(movimientoService.listarDelMes(
+                anio, mes, busqueda, tipo, clasificacion, idCategoria, medioPago));
     }
 
     /** END-TRX-04: detalle de un movimiento propio. 404 si no existe o es de otro estudiante */
@@ -40,6 +56,7 @@ public class MovimientoController {
     public ResponseEntity<MovimientoDetalleResponseDTO> obtenerDetalle(@PathVariable Long id) {
         return ResponseEntity.ok(movimientoService.obtenerDetalle(id));
     }
+
     /** END-TRX-05: edita un movimiento propio (Free y Premium). 404 si no existe o es de otro estudiante */
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
@@ -47,6 +64,7 @@ public class MovimientoController {
                                                             @Valid @RequestBody MovimientoRequestDTO dto) {
         return ResponseEntity.ok(movimientoService.actualizar(id, dto));
     }
+
     /** END-TRX-06: elimina un movimiento propio (Free y Premium). 404 si no existe o es de otro estudiante */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
