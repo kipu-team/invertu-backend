@@ -27,4 +27,11 @@ public interface CategoriaRepositorio extends JpaRepository<Categoria, Long> {
 
     /** END-CAT-03: solo encuentra categorias personalizadas, activas y del propio estudiante. */
     Optional<Categoria> findByIdCategoriaAndEstudianteIdEstudianteAndActivaTrue(Long idCategoria, Long idEstudiante);
+
+    /** END-TRX-02 y 05: la categoria debe estar activa y ser predeterminada o del estudiante. */
+    @Query("SELECT c FROM Categoria c LEFT JOIN c.estudiante e " +
+            "WHERE c.idCategoria = :idCategoria AND c.activa = true " +
+            "AND (e IS NULL OR e.idEstudiante = :idEstudiante)")
+    Optional<Categoria> findDisponible(@Param("idCategoria") Long idCategoria,
+                                       @Param("idEstudiante") Long idEstudiante);
 }
