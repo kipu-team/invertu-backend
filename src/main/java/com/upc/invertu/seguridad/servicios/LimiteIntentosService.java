@@ -47,6 +47,37 @@ public class LimiteIntentosService {
         intentos.remove(clave);
     }
 
+    // ---------- Fallos consecutivos con bloqueo fijo (login, END-AUTH-02) ----------
+
+    // clave -> fallos consecutivos y, si se alcanzo el maximo, hasta cuando dura el bloqueo
+    private record EstadoFallos(int consecutivos, Instant bloqueadoHasta) {}
+
+    private final Map<String, EstadoFallos> fallos = new ConcurrentHashMap<>();
+
+    /** Lanza 429 con el mensaje indicado si la clave esta bloqueada; si el bloqueo ya vencio, lo elimina. */
+    public void verificarBloqueo(String clave, String mensaje) {
+        Instant ahora = Instant.now();
+        EstadoFallos estado = fallos.computeIfPresent(clave, (k, e) ->
+                e.bloqueadoHasta() != null && !e.bloqueadoHasta().isAfter(ahora) ? null : e);
+        if (estado != null && estado.bloqueadoHasta() != null) {
+            throw new LimiteIntentosException(mensaje);
+        }
+    }
+
+    /** Suma un fallo consecutivo; al llegar a maxFallos bloquea la clave durante "bloqueo" desde ahora. */
+    public void registrarFallo(String clave, int maxFallos, Duration bloqueo) {
+        fallos.compute(clave, (k, e) -> {
+            int consecutivos = (e == null ? 0 : e.consecutivos()) + 1;
+            Instant bloqueadoHasta = consecutivos >= maxFallos ? Instant.now().plus(bloqueo) : null;
+            return new EstadoFallos(consecutivos, bloqueadoHasta);
+        });
+    }
+
+    /** Borra los fallos consecutivos de la clave (login exitoso). */
+    public void reiniciarFallos(String clave) {
+        fallos.remove(clave);
+    }
+
     // Quita los intentos vencidos y devuelve cuantos quedan dentro de la ventana
     private int contarVigentes(String clave, Duration ventana) {
         Instant limite = Instant.now().minus(ventana);
