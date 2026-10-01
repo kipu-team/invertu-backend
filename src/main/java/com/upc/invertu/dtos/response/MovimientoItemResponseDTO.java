@@ -10,19 +10,19 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** END-TRX-04 */
+/** END-TRX-01: cada fila del historial de movimientos */
 @Getter
 @Setter
 @NoArgsConstructor
-public class MovimientoDetalleResponseDTO {
+public class MovimientoItemResponseDTO {
     private Long idMovimiento;
+    private LocalDate fecha;
+    private String descripcion;
+    private String categoria;
     private TipoMovimiento tipo;
     private Clasificacion clasificacion;
-    private String descripcion;
-    private LocalDate fecha;
     private BigDecimal monto;
-    private String categoria;        // nombre de la categoria
     private MedioPago medioPago;
-    private String suscripcion;      // nombre del servicio, o null
-    private String urlComprobante;   // enlace temporal al comprobante, o null
+    private String suscripcion;
+    private boolean tieneComprobante;
 }
