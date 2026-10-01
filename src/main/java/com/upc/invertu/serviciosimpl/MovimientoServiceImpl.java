@@ -98,10 +98,27 @@ public class MovimientoServiceImpl implements MovimientoService {
         return dto;
     }
 
+
     /**
-     * Valida y copia los datos del request al movimiento.
-     * Se reutilizara en la edicion (T-16, END-TRX-05), que tiene las mismas reglas.
+     * Busca un movimiento solo si es del estudiante autenticado; si no, 404.
+     * Se usa en el detalle, la edicion y la eliminacion (T-18).
      */
+
+    @Override
+    @Transactional
+    public MovimientoResponseDTO actualizar(Long idMovimiento, MovimientoRequestDTO dto) {
+        Movimiento movimiento = buscarPropio(idMovimiento); // 404 si no existe o es de otro estudiante
+
+        // Un ingreso no puede ser pago de una suscripcion: si el tipo es INGRESO, se quita
+        if (dto.getTipo() == TipoMovimiento.INGRESO) {
+            dto.setIdSuscripcion(null);
+        }
+
+        aplicarDatos(movimiento, dto, movimiento.getEstudiante().getIdEstudiante());
+        // No se modifica urlComprobante: el movimiento conserva su comprobante
+        return aDTO(movimientoRepositorio.save(movimiento));
+    }
+
     private void aplicarDatos(Movimiento movimiento, MovimientoRequestDTO dto, Long idEstudiante) {
         // La categoria debe estar activa y ser predeterminada o del propio estudiante
         Categoria categoria = categoriaRepositorio.findDisponible(dto.getIdCategoria(), idEstudiante)

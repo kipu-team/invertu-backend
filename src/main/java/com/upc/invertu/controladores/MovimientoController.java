@@ -39,4 +39,11 @@ public class MovimientoController {
     public ResponseEntity<MovimientoDetalleResponseDTO> obtenerDetalle(@PathVariable Long id) {
         return ResponseEntity.ok(movimientoService.obtenerDetalle(id));
     }
+    /** END-TRX-05: edita un movimiento propio (Free y Premium). 404 si no existe o es de otro estudiante */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<MovimientoResponseDTO> actualizar(@PathVariable Long id,
+                                                            @Valid @RequestBody MovimientoRequestDTO dto) {
+        return ResponseEntity.ok(movimientoService.actualizar(id, dto));
+    }
 }

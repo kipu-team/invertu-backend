@@ -10,4 +10,5 @@ public interface MovimientoService {
     MovimientoResponseDTO registrar(MovimientoRequestDTO dto);
     MovimientoListaResponseDTO listarDelMes(int anio, int mes);       // END-TRX-01
     MovimientoDetalleResponseDTO obtenerDetalle(Long idMovimiento);   // END-TRX-04
+    MovimientoResponseDTO actualizar(Long idMovimiento, MovimientoRequestDTO dto);   // END-TRX-05
 }
