@@ -1,10 +1,7 @@
 package com.upc.invertu.serviciosimpl;
 
 import com.upc.invertu.dtos.request.MovimientoRequestDTO;
-import com.upc.invertu.dtos.response.MovimientoDetalleResponseDTO;
-import com.upc.invertu.dtos.response.MovimientoItemResponseDTO;
-import com.upc.invertu.dtos.response.MovimientoListaResponseDTO;
-import com.upc.invertu.dtos.response.MovimientoResponseDTO;
+import com.upc.invertu.dtos.response.*;
 import com.upc.invertu.entidades.Categoria;
 import com.upc.invertu.entidades.Movimiento;
 import com.upc.invertu.entidades.Suscripcion;
@@ -98,12 +95,7 @@ public class MovimientoServiceImpl implements MovimientoService {
         return dto;
     }
 
-
-    /**
-     * Busca un movimiento solo si es del estudiante autenticado; si no, 404.
-     * Se usa en el detalle, la edicion y la eliminacion (T-18).
-     */
-
+    /** END-TRX-05: edita un movimiento propio con las mismas reglas del registro */
     @Override
     @Transactional
     public MovimientoResponseDTO actualizar(Long idMovimiento, MovimientoRequestDTO dto) {
@@ -119,6 +111,20 @@ public class MovimientoServiceImpl implements MovimientoService {
         return aDTO(movimientoRepositorio.save(movimiento));
     }
 
+    /** END-TRX-06: elimina un movimiento propio */
+    @Override
+    @Transactional
+    public MensajeResponseDTO eliminar(Long idMovimiento) {
+        Movimiento movimiento = buscarPropio(idMovimiento, "El movimiento no existe o ya fue eliminado");
+
+        // Pendiente T-47: si tiene comprobante (urlComprobante != null), borrar tambien su archivo
+        movimientoRepositorio.delete(movimiento);
+        return new MensajeResponseDTO("Movimiento eliminado");
+    }
+    /**
+     * Valida y copia los datos del request al movimiento.
+     * Se usa en el registro (END-TRX-02) y en la edicion (END-TRX-05), que tienen las mismas reglas.
+     */
     private void aplicarDatos(Movimiento movimiento, MovimientoRequestDTO dto, Long idEstudiante) {
         // La categoria debe estar activa y ser predeterminada o del propio estudiante
         Categoria categoria = categoriaRepositorio.findDisponible(dto.getIdCategoria(), idEstudiante)
@@ -160,12 +166,17 @@ public class MovimientoServiceImpl implements MovimientoService {
     }
     /**
      * Busca un movimiento solo si es del estudiante autenticado; si no, 404.
-     * Se reutilizara en la edicion (T-16) y eliminacion (T-18).
+     * Se usa en el detalle y la edicion.
      */
     private Movimiento buscarPropio(Long idMovimiento) {
+        return buscarPropio(idMovimiento, "El movimiento no existe");
+    }
+
+    // Misma busqueda, pero con un mensaje de error propio (la eliminacion usa otro texto)
+    private Movimiento buscarPropio(Long idMovimiento, String mensajeError) {
         Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
         return movimientoRepositorio.findByIdMovimientoAndEstudianteIdEstudiante(idMovimiento, idEstudiante)
-                .orElseThrow(() -> new RecursoNoEncontradoException("El movimiento no existe"));
+                .orElseThrow(() -> new RecursoNoEncontradoException(mensajeError));
     }
 
     private MovimientoItemResponseDTO aItemDTO(Movimiento movimiento) {
