@@ -1,14 +1,19 @@
 package com.upc.invertu.unitarias;
 
 import com.upc.invertu.excepciones.ConflictoException;
+import com.upc.invertu.excepciones.LimiteIntentosException;
 import com.upc.invertu.excepciones.ReglaNegocioException;
+import com.upc.invertu.seguridad.dtos.request.AuthRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.RegistroRequestDTO;
+import com.upc.invertu.seguridad.dtos.response.AuthResponseDTO;
 import com.upc.invertu.seguridad.dtos.response.RegistroResponseDTO;
 import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.entidades.Rol;
 import com.upc.invertu.seguridad.repositorios.EstudianteRepositorio;
 import com.upc.invertu.seguridad.repositorios.RolRepositorio;
+import com.upc.invertu.seguridad.servicios.LimiteIntentosService;
 import com.upc.invertu.seguridad.serviciosimpl.AuthServiceImpl;
+import com.upc.invertu.seguridad.utilidades.JwtUtil;
 import com.upc.invertu.entidades.enums.Idioma;
 import com.upc.invertu.entidades.enums.Tema;
 import org.junit.jupiter.api.Test;
@@ -17,15 +22,23 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Duration;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
-/** US-01: reglas de negocio del registro (END-AUTH-01) */
+/** US-01 y US-02: registro (END-AUTH-01) e inicio de sesion (END-AUTH-02) */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
 
@@ -37,6 +50,15 @@ class AuthServiceImplTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private AuthenticationManager authenticationManager;
+
+    @Mock
+    private JwtUtil jwtUtil;
+
+    @Mock
+    private LimiteIntentosService limiteIntentosService;
 
     @InjectMocks
     private AuthServiceImpl authService;
@@ -100,5 +122,79 @@ class AuthServiceImplTest {
 
         assertEquals("Las contraseñas no coinciden", ex.getMessage());
         verifyNoInteractions(estudianteRepositorio, rolRepositorio, passwordEncoder);
+    }
+
+    // ---------- US-02: inicio de sesion (END-AUTH-02) ----------
+
+    private AuthRequestDTO login(String correo, String contrasena) {
+        AuthRequestDTO dto = new AuthRequestDTO();
+        dto.setCorreo(correo);
+        dto.setContrasena(contrasena);
+        return dto;
+    }
+
+    @Test
+    void loginExitoso_devuelveTokenYDatosYReiniciaElContador() {
+        UserDetails usuario = User.withUsername("ana@upc.edu.pe").password("hash")
+                .authorities("ROLE_FREE").build();
+        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                .thenReturn(new UsernamePasswordAuthenticationToken(usuario, null, usuario.getAuthorities()));
+        when(jwtUtil.generarToken(usuario)).thenReturn("jwt-token");
+        when(jwtUtil.getExpiracionSegundos()).thenReturn(86400L);
+
+        Estudiante estudiante = new Estudiante();
+        estudiante.setIdEstudiante(1L);
+        estudiante.setNombres("Ana");
+        estudiante.setCorreo("ana@upc.edu.pe");
+        estudiante.setRol(new Rol("ROLE_FREE"));
+        when(estudianteRepositorio.findByCorreoConRol("ana@upc.edu.pe")).thenReturn(Optional.of(estudiante));
+
+        AuthResponseDTO respuesta = authService.iniciarSesion(login(" Ana@UPC.edu.pe ", "Clave123!"));
+
+        ArgumentCaptor<UsernamePasswordAuthenticationToken> captor =
+                ArgumentCaptor.forClass(UsernamePasswordAuthenticationToken.class);
+        verify(authenticationManager).authenticate(captor.capture());
+        assertEquals("ana@upc.edu.pe", captor.getValue().getPrincipal());
+        assertEquals("Clave123!", captor.getValue().getCredentials());
+
+        verify(limiteIntentosService).verificarBloqueo("login:ana@upc.edu.pe", AuthServiceImpl.MENSAJE_BLOQUEO_LOGIN);
+        verify(limiteIntentosService).reiniciarFallos("login:ana@upc.edu.pe");
+        verify(limiteIntentosService, never()).registrarFallo(anyString(), anyInt(), any());
+
+        assertEquals("jwt-token", respuesta.getToken());
+        assertEquals("Bearer", respuesta.getTipo());
+        assertEquals(86400L, respuesta.getExpiraEn());
+        assertEquals(1L, respuesta.getEstudiante().getIdEstudiante());
+        assertEquals("Ana", respuesta.getEstudiante().getNombres());
+        assertEquals("ROLE_FREE", respuesta.getEstudiante().getRol());
+        assertEquals(Tema.SISTEMA, respuesta.getEstudiante().getTema());
+        assertEquals(Idioma.es_419, respuesta.getEstudiante().getIdioma());
+    }
+
+    @Test
+    void credencialesIncorrectas_registraFalloYLanza401() {
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new BadCredentialsException("Bad credentials"));
+
+        assertThrows(BadCredentialsException.class,
+                () -> authService.iniciarSesion(login("ana@upc.edu.pe", "Incorrecta1!")));
+
+        verify(limiteIntentosService).registrarFallo("login:ana@upc.edu.pe", 5, Duration.ofMinutes(15));
+        verify(limiteIntentosService, never()).reiniciarFallos(anyString());
+        verifyNoInteractions(jwtUtil);
+    }
+
+    @Test
+    void correoBloqueado_lanza429SinAutenticar() {
+        doThrow(new LimiteIntentosException(AuthServiceImpl.MENSAJE_BLOQUEO_LOGIN))
+                .when(limiteIntentosService)
+                .verificarBloqueo("login:ana@upc.edu.pe", AuthServiceImpl.MENSAJE_BLOQUEO_LOGIN);
+
+        LimiteIntentosException ex = assertThrows(LimiteIntentosException.class,
+                () -> authService.iniciarSesion(login("ANA@upc.edu.pe", "Clave123!")));
+
+        assertEquals("Demasiados intentos fallidos. Intenta nuevamente en 15 minutos", ex.getMessage());
+        verifyNoInteractions(authenticationManager, jwtUtil);
+        verify(limiteIntentosService, never()).registrarFallo(anyString(), anyInt(), any());
     }
 }

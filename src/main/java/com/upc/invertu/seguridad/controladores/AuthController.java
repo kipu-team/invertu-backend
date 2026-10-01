@@ -1,6 +1,8 @@
 package com.upc.invertu.seguridad.controladores;
 
+import com.upc.invertu.seguridad.dtos.request.AuthRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.RegistroRequestDTO;
+import com.upc.invertu.seguridad.dtos.response.AuthResponseDTO;
 import com.upc.invertu.seguridad.dtos.response.RegistroResponseDTO;
 import com.upc.invertu.seguridad.servicios.AuthService;
 import jakarta.validation.Valid;
@@ -24,5 +26,11 @@ public class AuthController {
     public ResponseEntity<RegistroResponseDTO> registrar(@Valid @RequestBody RegistroRequestDTO dto) {
         // @Valid aplica las validaciones del DTO -> 400 si fallan
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrar(dto));
+    }
+
+    /** END-AUTH-02: inicia sesion y devuelve el token JWT */
+    @PostMapping("/iniciar-sesion")
+    public ResponseEntity<AuthResponseDTO> iniciarSesion(@Valid @RequestBody AuthRequestDTO dto) {
+        return ResponseEntity.ok(authService.iniciarSesion(dto));
     }
 }
