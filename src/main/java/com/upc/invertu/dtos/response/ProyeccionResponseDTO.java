@@ -1,13 +1,18 @@
 package com.upc.invertu.dtos.response;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.LocalDate;
 
 /** END-GOAL-07 */
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class ProyeccionResponseDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
+    private LocalDate fechaEstimada;
+    private String mensaje;
 }
