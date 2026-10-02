@@ -1,5 +1,6 @@
 package com.upc.invertu.controladores;
 
+import com.upc.invertu.dtos.request.ExtenderFechaRequestDTO;
 import com.upc.invertu.dtos.request.MetaRequestDTO;
 import com.upc.invertu.dtos.response.*;
 import com.upc.invertu.servicios.MetaService;
@@ -69,5 +70,17 @@ public class MetaController {
                                                      @Valid @RequestBody MetaRequestDTO dto) {
         // @Valid aplica las validaciones del DTO -> 400 si fallan
         return ResponseEntity.ok(metaService.actualizar(id, dto));
+    }
+
+    /**
+     * END-GOAL-09: extiende la fecha objetivo de una meta propia ACTIVA y vencida.
+     * Solo permite establecer una nueva fecha posterior a hoy.
+     */
+    @PatchMapping("/{id}/extender-fecha")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<MetaResponseDTO> extenderFecha(@PathVariable Long id,
+                                                         @Valid @RequestBody ExtenderFechaRequestDTO dto) {
+        // @Valid aplica las validaciones del DTO -> 400 si fallan
+        return ResponseEntity.ok(metaService.extenderFecha(id, dto));
     }
 }

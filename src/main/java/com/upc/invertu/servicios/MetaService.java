@@ -1,5 +1,6 @@
 package com.upc.invertu.servicios;
 
+import com.upc.invertu.dtos.request.ExtenderFechaRequestDTO;
 import com.upc.invertu.dtos.request.MetaRequestDTO;
 import com.upc.invertu.dtos.response.*;
 
@@ -14,4 +15,5 @@ public interface MetaService {
     MetaDetalleResponseDTO obtenerDetalle(Long idMeta);      // END-GOAL-05
     ProyeccionResponseDTO obtenerProyeccion(Long idMeta);    // END-GOAL-07
     MetaResponseDTO actualizar(Long idMeta, MetaRequestDTO dto); // END-GOAL-08
+    MetaResponseDTO extenderFecha(Long idMeta, ExtenderFechaRequestDTO dto); // END-GOAL-09
 }
