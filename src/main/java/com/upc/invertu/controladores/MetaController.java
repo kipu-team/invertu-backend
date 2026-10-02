@@ -61,4 +61,13 @@ public class MetaController {
     public ResponseEntity<ProyeccionResponseDTO> obtenerProyeccion(@PathVariable Long id) {
         return ResponseEntity.ok(metaService.obtenerProyeccion(id));
     }
+
+    /** END-GOAL-08: edita una meta propia ACTIVA (Free y Premium). 404 si no existe o es de otro estudiante */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<MetaResponseDTO> actualizar(@PathVariable Long id,
+                                                     @Valid @RequestBody MetaRequestDTO dto) {
+        // @Valid aplica las validaciones del DTO -> 400 si fallan
+        return ResponseEntity.ok(metaService.actualizar(id, dto));
+    }
 }

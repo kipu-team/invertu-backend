@@ -8,6 +8,7 @@ import com.upc.invertu.entidades.enums.EstadoMeta;
 import com.upc.invertu.entidades.enums.FrecuenciaAporte;
 import com.upc.invertu.excepciones.LimitePlanException;
 import com.upc.invertu.excepciones.RecursoNoEncontradoException;
+import com.upc.invertu.excepciones.ReglaNegocioException;
 import com.upc.invertu.repositorios.AporteRepositorio;
 import com.upc.invertu.repositorios.MetaRepositorio;
 import com.upc.invertu.repositorios.PlanRepositorio;
@@ -172,6 +173,50 @@ public class MetaServiceImpl implements MetaService {
                 ? "Al ritmo actual cumplirías tu meta después de la fecha objetivo"
                 : "Al ritmo actual cumplirías tu meta a tiempo";
         return new ProyeccionResponseDTO(fechaEstimada, mensaje);
+    }
+
+    /**
+     * END-GOAL-08: edita una meta propia ACTIVA.
+     * Solo cambian nombre, montoObjetivo, fechaObjetivo, frecuenciaAporte y descripcion;
+     * el dueno, los aportes, el estado y la fecha de creacion no se tocan.
+     */
+    @Override
+    @Transactional
+    public MetaResponseDTO actualizar(Long idMeta, MetaRequestDTO dto) {
+        // 404 si la meta no existe o es de otro estudiante
+        Meta meta = buscarPropia(idMeta);
+
+        // Solo se puede editar una meta que sigue en curso
+        if (meta.getEstado() != EstadoMeta.ACTIVA) {
+            throw new ReglaNegocioException("Datos inválidos");
+        }
+
+        BigDecimal aportado = sumarAportes(idMeta);
+        if (dto.getMontoObjetivo().compareTo(aportado) <= 0) {
+            throw new ReglaNegocioException("El monto objetivo debe ser mayor a lo ya ahorrado");
+        }
+
+        // Si no viene la frecuencia en el request se conserva la actual: en edicion no aplica
+        // el default SEMANAL de la creacion, para no cambiarle la frecuencia a la meta por accidente
+        FrecuenciaAporte frecuencia = dto.getFrecuenciaAporte() != null
+                ? dto.getFrecuenciaAporte()
+                : meta.getFrecuenciaAporte();
+
+        // Se detectan los cambios antes de tocar la entidad (con los valores actuales)
+        boolean cambioFrecuencia = meta.getFrecuenciaAporte() != frecuencia;
+        boolean cambioFechaObjetivo = !dto.getFechaObjetivo().equals(meta.getFechaObjetivo());
+
+        meta.setNombre(dto.getNombre().trim());
+        meta.setDescripcion(limpiarTexto(dto.getDescripcion()));
+        meta.setMontoObjetivo(dto.getMontoObjetivo());
+        meta.setFechaObjetivo(dto.getFechaObjetivo());
+        meta.setFrecuenciaAporte(frecuencia);
+        // Si cambio la frecuencia o la fecha objetivo, la proximaFechaAporte se recalcula con la
+        // frecuencia final y la nueva fechaObjetivo, para no quedar en una fecha posterior a la meta
+        if (cambioFrecuencia || cambioFechaObjetivo) {
+            meta.setProximaFechaAporte(CalculosMeta.proximaFechaAporte(frecuencia, meta.getFechaObjetivo()));
+        }
+        return aDTO(metaRepositorio.save(meta), aportado);
     }
 
     /**
