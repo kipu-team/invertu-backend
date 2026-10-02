@@ -13,4 +13,5 @@ public interface MetaService {
     List<MetaResumenResponseDTO> listarFinalizadas();       // END-GOAL-04
     MetaDetalleResponseDTO obtenerDetalle(Long idMeta);      // END-GOAL-05
     ProyeccionResponseDTO obtenerProyeccion(Long idMeta);    // END-GOAL-07
+    MetaResponseDTO actualizar(Long idMeta, MetaRequestDTO dto); // END-GOAL-08
 }
