@@ -14,6 +14,7 @@ import com.upc.invertu.repositorios.PlanRepositorio;
 import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.utilidades.EstudianteAutenticado;
 import com.upc.invertu.servicios.MetaService;
+import com.upc.invertu.utilidades.CalculosMeta;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,10 +64,7 @@ public class MetaServiceImpl implements MetaService {
         meta.setMontoObjetivo(dto.getMontoObjetivo());
         meta.setFechaObjetivo(dto.getFechaObjetivo());
         meta.setFrecuenciaAporte(frecuencia);
-        meta.setProximaFechaAporte(calcularProximaFechaAporte(frecuencia, dto.getFechaObjetivo()));
-        // El estado ACTIVA ya viene por defecto en la entidad Meta
-
-        // Una meta recien creada no tiene aportes
+        meta.setProximaFechaAporte(CalculosMeta.proximaFechaAporte(frecuencia, dto.getFechaObjetivo()));
         return aDTO(metaRepositorio.save(meta), BigDecimal.ZERO);
     }
 
@@ -90,7 +88,7 @@ public class MetaServiceImpl implements MetaService {
         return metas.stream().map(meta -> {
             BigDecimal montoAportado = aportado.getOrDefault(meta.getIdMeta(), BigDecimal.ZERO);
             MetaResumenResponseDTO dto = aResumenDTO(meta, montoAportado);
-            dto.setPorcentaje(calcularPorcentaje(montoAportado, meta.getMontoObjetivo()));
+            dto.setPorcentaje(CalculosMeta.porcentaje(montoAportado, meta.getMontoObjetivo()));
             dto.setFechaObjetivo(meta.getFechaObjetivo());
             dto.setVencida(meta.getFechaObjetivo().isBefore(hoy));
             return dto;
@@ -127,7 +125,7 @@ public class MetaServiceImpl implements MetaService {
         dto.setDescripcion(meta.getDescripcion());
         dto.setMontoObjetivo(meta.getMontoObjetivo());
         dto.setMontoAportado(aportado);
-        dto.setPorcentaje(calcularPorcentaje(aportado, meta.getMontoObjetivo()));
+        dto.setPorcentaje(CalculosMeta.porcentaje(aportado, meta.getMontoObjetivo()));
         dto.setFechaObjetivo(meta.getFechaObjetivo());
         dto.setFrecuenciaAporte(meta.getFrecuenciaAporte());
         dto.setProximaFechaAporte(meta.getProximaFechaAporte());
@@ -197,22 +195,7 @@ public class MetaServiceImpl implements MetaService {
         dto.setLimiteAlcanzado(limite != null && metasActivas >= limite);
         return dto;
     }
-
-    // Siguiente fecha en que el estudiante deberia aportar; nunca despues de la fecha objetivo
-    private LocalDate calcularProximaFechaAporte(FrecuenciaAporte frecuencia, LocalDate fechaObjetivo) {
-        LocalDate hoy = LocalDate.now();
-        LocalDate proxima = switch (frecuencia) {
-            case DIARIA -> hoy.plusDays(1);
-            case SEMANAL -> hoy.plusWeeks(1);
-            case MENSUAL -> hoy.plusMonths(1);
-            case SIN_FRECUENCIA -> null;
-        };
-        if (proxima != null && proxima.isAfter(fechaObjetivo)) {
-            return fechaObjetivo;
-        }
-        return proxima;
-    }
-
+    
     // Texto opcional: si viene vacio o con solo espacios se guarda null
     private String limpiarTexto(String texto) {
         if (texto == null || texto.isBlank()) {
@@ -239,12 +222,6 @@ public class MetaServiceImpl implements MetaService {
             mapa.put((Long) fila[0], (BigDecimal) fila[1]);
         }
         return mapa;
-    }
-
-    // Progreso = aportado / objetivo * 100, con 2 decimales
-    private BigDecimal calcularPorcentaje(BigDecimal aportado, BigDecimal objetivo) {
-        return aportado.multiply(BigDecimal.valueOf(100))
-                .divide(objetivo, 2, RoundingMode.HALF_UP);
     }
 
     // Campos comunes a END-GOAL-03 y 04
