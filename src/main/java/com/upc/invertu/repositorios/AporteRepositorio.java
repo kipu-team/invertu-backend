@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 public interface AporteRepositorio extends JpaRepository<Aporte, Long> {
     /**
@@ -22,4 +23,7 @@ public interface AporteRepositorio extends JpaRepository<Aporte, Long> {
     BigDecimal sumarAportes(@Param("idMeta") Long idMeta);
     /** END-GOAL-06 y 07: aportes de una meta, del mas antiguo al mas reciente. */
     List<Aporte> findByMetaIdMetaOrderByFechaAsc(Long idMeta);
+    /** END-GOAL-13: valida en una sola consulta que el aporte exista, sea de esa meta y que la meta sea del estudiante.*/
+    Optional<Aporte> findByIdAporteAndMetaIdMetaAndMetaEstudianteIdEstudiante(Long idAporte, Long idMeta,
+                                                                              Long idEstudiante);
 }
