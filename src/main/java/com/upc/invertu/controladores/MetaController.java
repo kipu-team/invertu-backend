@@ -83,4 +83,18 @@ public class MetaController {
         // @Valid aplica las validaciones del DTO -> 400 si fallan
         return ResponseEntity.ok(metaService.extenderFecha(id, dto));
     }
+
+    /** END-GOAL-10: cancela una meta propia ACTIVA (Free y Premium). 404 si no existe o es de otro estudiante */
+    @PatchMapping("/{id}/cancelar")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<MetaResponseDTO> cancelar(@PathVariable Long id) {
+        return ResponseEntity.ok(metaService.cancelar(id));
+    }
+
+    /** END-GOAL-14: reactiva una meta propia CANCELADA (Free y Premium). 403 si Free alcanzo su limite */
+    @PatchMapping("/{id}/reactivar")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<MetaResponseDTO> reactivar(@PathVariable Long id) {
+        return ResponseEntity.ok(metaService.reactivar(id));
+    }
 }

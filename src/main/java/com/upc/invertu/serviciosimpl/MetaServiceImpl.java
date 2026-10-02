@@ -250,6 +250,47 @@ public class MetaServiceImpl implements MetaService {
     }
 
     /**
+     * END-GOAL-10: cancela una meta propia ACTIVA, esté vencida o no.
+     * Solo cambia el estado; los aportes y el resto de la meta se conservan.
+     */
+    @Override
+    @Transactional
+    public MetaResponseDTO cancelar(Long idMeta) {
+        // 404 si la meta no existe o es de otro estudiante
+        Meta meta = buscarPropia(idMeta);
+
+        if (meta.getEstado() != EstadoMeta.ACTIVA) {
+            throw new ReglaNegocioException("Solo puedes cancelar metas activas");
+        }
+
+        meta.setEstado(EstadoMeta.CANCELADA);
+        return aDTO(metaRepositorio.save(meta), sumarAportes(idMeta));
+    }
+
+    /**
+     * END-GOAL-14: reactiva una meta propia CANCELADA.
+     * Solo cambia el estado; los aportes y el resto de la meta se conservan.
+     */
+    @Override
+    @Transactional
+    public MetaResponseDTO reactivar(Long idMeta) {
+        // 404 si la meta no existe o es de otro estudiante
+        Meta meta = buscarPropia(idMeta);
+
+        if (meta.getEstado() != EstadoMeta.CANCELADA) {
+            throw new ReglaNegocioException("Solo puedes reactivar metas canceladas");
+        }
+
+        // El limite del plan Free tambien aplica al reactivar; Premium no tiene limite
+        if (calcularEstadoLimite(estudianteAutenticado.obtener()).isLimiteAlcanzado()) {
+            throw new LimitePlanException("Límite del Plan Free alcanzado");
+        }
+
+        meta.setEstado(EstadoMeta.ACTIVA);
+        return aDTO(metaRepositorio.save(meta), sumarAportes(idMeta));
+    }
+
+    /**
      * Compara las metas ACTIVA del estudiante con el limite de su plan.
      * Se usa en END-GOAL-01 (para bloquear) y en END-GOAL-02 (para informar).
      */
