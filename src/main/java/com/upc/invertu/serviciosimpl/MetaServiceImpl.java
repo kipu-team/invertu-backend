@@ -1,5 +1,6 @@
 package com.upc.invertu.serviciosimpl;
 
+import com.upc.invertu.dtos.request.ExtenderFechaRequestDTO;
 import com.upc.invertu.dtos.request.MetaRequestDTO;
 import com.upc.invertu.dtos.response.*;
 import com.upc.invertu.entidades.Meta;
@@ -217,6 +218,35 @@ public class MetaServiceImpl implements MetaService {
             meta.setProximaFechaAporte(CalculosMeta.proximaFechaAporte(frecuencia, meta.getFechaObjetivo()));
         }
         return aDTO(metaRepositorio.save(meta), aportado);
+    }
+
+    /**
+     * END-GOAL-09: extiende la fecha objetivo de una meta propia ACTIVA y vencida.
+     * Solo cambia fechaObjetivo; el dueno, el estado, el monto objetivo, los aportes
+     * y la fecha de creacion se conservan.
+     */
+    @Override
+    @Transactional
+    public MetaResponseDTO extenderFecha(Long idMeta, ExtenderFechaRequestDTO dto) {
+        // 404 si la meta no existe o es de otro estudiante
+        Meta meta = buscarPropia(idMeta);
+
+        LocalDate hoy = LocalDate.now();
+
+        // Solo una meta ACTIVA cuya fecha objetivo ya paso puede extenderse
+        if (meta.getEstado() != EstadoMeta.ACTIVA || !meta.getFechaObjetivo().isBefore(hoy)) {
+            throw new ReglaNegocioException("Solo se puede extender una meta vencida");
+        }
+
+        // La nueva fecha tiene que quedar estrictamente despues de hoy
+        LocalDate nuevaFechaObjetivo = dto.getNuevaFechaObjetivo();
+        if (nuevaFechaObjetivo == null || !nuevaFechaObjetivo.isAfter(hoy)) {
+            throw new ReglaNegocioException("La nueva fecha debe ser posterior a hoy");
+        }
+
+        // Unico campo que cambia: el resto de la meta y sus aportes quedan igual
+        meta.setFechaObjetivo(nuevaFechaObjetivo);
+        return aDTO(metaRepositorio.save(meta), sumarAportes(idMeta));
     }
 
     /**
