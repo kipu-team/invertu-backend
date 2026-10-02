@@ -1,5 +1,7 @@
 package com.upc.invertu.dtos.request;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -9,5 +11,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class ConsultaChatbotRequestDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
+    // @NotBlank rechaza null, vacio y solo espacios
+    @NotBlank(message = "Ingresa una pregunta")
+    @Size(max = 500, message = "La pregunta puede tener como máximo 500 caracteres")
+    private String pregunta;
 }
