@@ -1,10 +1,15 @@
 package com.upc.invertu.seguridad.serviciosimpl;
 
 import com.upc.invertu.entidades.Plan;
+import com.upc.invertu.entidades.enums.Idioma;
+import com.upc.invertu.entidades.enums.Tema;
 import com.upc.invertu.excepciones.RecursoNoEncontradoException;
+import com.upc.invertu.excepciones.ReglaNegocioException;
 import com.upc.invertu.repositorios.PlanRepositorio;
 import com.upc.invertu.seguridad.dtos.request.PerfilRequestDTO;
+import com.upc.invertu.seguridad.dtos.request.PreferenciasRequestDTO;
 import com.upc.invertu.seguridad.dtos.response.PerfilResponseDTO;
+import com.upc.invertu.seguridad.dtos.response.PreferenciasResponseDTO;
 import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.repositorios.EstudianteRepositorio;
 import com.upc.invertu.seguridad.servicios.EstudianteService;
@@ -50,6 +55,32 @@ public class EstudianteServiceImpl implements EstudianteService {
         estudiante.setUniversidad(limpiarTexto(dto.getUniversidad()));
         estudianteRepositorio.save(estudiante);
         return aPerfilDTO(estudiante);
+    }
+
+    /**
+     * END-PROF-03: actualiza tema e idioma del estudiante autenticado.
+     * Solo cambian esas dos preferencias y la fecha de modificacion.
+     */
+    @Override
+    @Transactional
+    public PreferenciasResponseDTO actualizarPreferencias(PreferenciasRequestDTO dto) {
+        Estudiante estudiante = estudianteAutenticado.obtener();
+
+        Tema tema;
+        Idioma idioma;
+        try {
+            tema = Tema.valueOf(dto.getTema());
+            idioma = Idioma.valueOf(dto.getIdioma());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new ReglaNegocioException("Tema o idioma no válido");
+        }
+
+        estudianteRepositorio.actualizarPreferencias(estudiante.getIdEstudiante(), tema, idioma);
+
+        PreferenciasResponseDTO respuesta = new PreferenciasResponseDTO();
+        respuesta.setTema(tema);
+        respuesta.setIdioma(idioma);
+        return respuesta;
     }
 
     /** Datos personales, preferencias y plan vigente; compartido por END-PROF-01 y 02 */
