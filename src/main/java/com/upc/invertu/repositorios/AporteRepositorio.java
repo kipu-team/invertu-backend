@@ -26,4 +26,6 @@ public interface AporteRepositorio extends JpaRepository<Aporte, Long> {
     /** END-GOAL-13: valida en una sola consulta que el aporte exista, sea de esa meta y que la meta sea del estudiante.*/
     Optional<Aporte> findByIdAporteAndMetaIdMetaAndMetaEstudianteIdEstudiante(Long idAporte, Long idMeta,
                                                                               Long idEstudiante);
+    /** END-GOAL-11: verifica si la meta tiene aportes registrados. */
+    boolean existsByMetaIdMeta(Long idMeta);
 }

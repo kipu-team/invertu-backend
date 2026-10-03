@@ -268,6 +268,29 @@ public class MetaServiceImpl implements MetaService {
     }
 
     /**
+     * END-GOAL-11: elimina una meta propia ACTIVA que no tiene aportes.
+     * Con aportes no se elimina: se indica cancelarla desde su detalle.
+     */
+    @Override
+    @Transactional
+    public MensajeResponseDTO eliminar(Long idMeta) {
+        // 404 si la meta no existe o es de otro estudiante
+        Meta meta = buscarPropia(idMeta);
+
+        if (aporteRepositorio.existsByMetaIdMeta(idMeta)) {
+            throw new ReglaNegocioException(
+                    "No puedes eliminar una meta que ya tiene aportes. Puedes cancelarla desde su detalle");
+        }
+
+        if (meta.getEstado() != EstadoMeta.ACTIVA) {
+            throw new ReglaNegocioException("Datos inválidos");
+        }
+
+        metaRepositorio.delete(meta);
+        return new MensajeResponseDTO("Meta eliminada correctamente");
+    }
+
+    /**
      * END-GOAL-14: reactiva una meta propia CANCELADA.
      * Solo cambia el estado; los aportes y el resto de la meta se conservan.
      */
