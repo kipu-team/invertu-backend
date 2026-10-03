@@ -1,7 +1,11 @@
 package com.upc.invertu.seguridad.controladores;
 
+import com.upc.invertu.dtos.response.MensajeResponseDTO;
+import com.upc.invertu.seguridad.dtos.request.CambiarContrasenaRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.PerfilRequestDTO;
+import com.upc.invertu.seguridad.dtos.request.PreferenciasRequestDTO;
 import com.upc.invertu.seguridad.dtos.response.PerfilResponseDTO;
+import com.upc.invertu.seguridad.dtos.response.PreferenciasResponseDTO;
 import com.upc.invertu.seguridad.servicios.EstudianteService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,5 +39,19 @@ public class EstudianteController {
     public ResponseEntity<PerfilResponseDTO> actualizarPerfil(@Valid @RequestBody PerfilRequestDTO dto) {
         // @Valid aplica las validaciones del DTO -> 400 si fallan
         return ResponseEntity.ok(estudianteService.actualizarPerfil(dto));
+    }
+
+    /** END-PROF-03: actualiza tema e idioma del estudiante autenticado (Free y Premium) */
+    @PutMapping("/preferencias")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<PreferenciasResponseDTO> actualizarPreferencias(@RequestBody PreferenciasRequestDTO dto) {
+        return ResponseEntity.ok(estudianteService.actualizarPreferencias(dto));
+    }
+
+    /** END-PROF-04: cambia la contrasena del estudiante autenticado (Free y Premium) */
+    @PutMapping("/contrasena")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<MensajeResponseDTO> cambiarContrasena(@RequestBody CambiarContrasenaRequestDTO dto) {
+        return ResponseEntity.ok(estudianteService.cambiarContrasena(dto));
     }
 }
