@@ -9,5 +9,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class CambiarContrasenaRequestDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
+    private String contrasenaActual;
+    private String nuevaContrasena;
+    private String confirmarContrasena;
 }
