@@ -16,4 +16,6 @@ public interface MetaService {
     ProyeccionResponseDTO obtenerProyeccion(Long idMeta);    // END-GOAL-07
     MetaResponseDTO actualizar(Long idMeta, MetaRequestDTO dto); // END-GOAL-08
     MetaResponseDTO extenderFecha(Long idMeta, ExtenderFechaRequestDTO dto); // END-GOAL-09
+    MetaResponseDTO cancelar(Long idMeta);          // END-GOAL-10
+    MetaResponseDTO reactivar(Long idMeta);         // END-GOAL-14
 }
