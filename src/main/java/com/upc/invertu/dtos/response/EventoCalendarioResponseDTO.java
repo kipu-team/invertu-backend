@@ -1,6 +1,7 @@
 package com.upc.invertu.dtos.response;
 
 import com.upc.invertu.entidades.enums.TipoEvento;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL) //Hace que en la respuesta de un dia no se repita en cada evento
 public class EventoCalendarioResponseDTO {
     private LocalDate fecha;
     private TipoEvento tipo; // META_LIMITE, META_APORTE o SUSCRIPCION
