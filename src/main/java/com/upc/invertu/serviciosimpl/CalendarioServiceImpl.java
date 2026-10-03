@@ -13,7 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.upc.invertu.entidades.Meta;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.upc.invertu.dtos.response.EventosDiaResponseDTO;
 
+import java.time.format.DateTimeParseException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -23,7 +25,7 @@ import java.util.*;
 @Service
 public class CalendarioServiceImpl implements CalendarioService {
     public static final String MENSAJE_MES_INVALIDO = "Mes o año inválido";
-
+    public static final String MENSAJE_FECHA_INVALIDA = "Fecha inválida";
     // Rango de anios aceptado: evita recorrer fechas sin sentido (por ejemplo, anio=0 o anio=99999)
     private static final int ANIO_MINIMO = 2000;
     private static final int ANIO_MAXIMO = 2100;
@@ -50,6 +52,20 @@ public class CalendarioServiceImpl implements CalendarioService {
         return generarEventos(YearMonth.of(anio, mes));
     }
 
+    /** END-CAL-02: genera los eventos del mes de la fecha y se queda con los de ese dia */
+    @Override
+    @Transactional(readOnly = true)
+    public EventosDiaResponseDTO listarEventosDelDia(String fecha) {
+        LocalDate dia = convertirFecha(fecha);
+
+        List<EventoCalendarioResponseDTO> eventos = generarEventos(YearMonth.from(dia)).stream()
+                .filter(evento -> evento.getFecha().equals(dia))
+                .toList();
+        // La fecha ya va en la respuesta: no se repite en cada evento (se oculta con NON_NULL)
+        eventos.forEach(evento -> evento.setFecha(null));
+
+        return new EventosDiaResponseDTO(dia, eventos.size(), eventos);
+    }
     /**
      * T-52: genera los eventos de un mes, ordenados por fecha.
      * - META_LIMITE: fecha objetivo de la meta; monto = lo que falta ahorrar.
@@ -140,6 +156,19 @@ public class CalendarioServiceImpl implements CalendarioService {
                 eventos.add(new EventoCalendarioResponseDTO(cobro, TipoEvento.SUSCRIPCION,
                         suscripcion.getIdSuscripcion(), suscripcion.getNombreServicio(), suscripcion.getMonto()));
             }
+        }
+    }
+
+    // La fecha llega como texto (YYYY-MM-DD) para responder 400 "Fecha inválida" con el mensaje de la US-34
+    private LocalDate convertirFecha(String fecha) {
+        try {
+            LocalDate dia = LocalDate.parse(fecha.trim());
+            if (dia.getYear() < ANIO_MINIMO || dia.getYear() > ANIO_MAXIMO) {
+                throw new ReglaNegocioException(MENSAJE_FECHA_INVALIDA);
+            }
+            return dia;
+        } catch (DateTimeParseException ex) {
+            throw new ReglaNegocioException(MENSAJE_FECHA_INVALIDA);
         }
     }
 
