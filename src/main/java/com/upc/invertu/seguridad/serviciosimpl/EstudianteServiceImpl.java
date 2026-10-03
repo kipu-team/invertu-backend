@@ -3,6 +3,7 @@ package com.upc.invertu.seguridad.serviciosimpl;
 import com.upc.invertu.entidades.Plan;
 import com.upc.invertu.excepciones.RecursoNoEncontradoException;
 import com.upc.invertu.repositorios.PlanRepositorio;
+import com.upc.invertu.seguridad.dtos.request.PerfilRequestDTO;
 import com.upc.invertu.seguridad.dtos.response.PerfilResponseDTO;
 import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.repositorios.EstudianteRepositorio;
@@ -32,7 +33,27 @@ public class EstudianteServiceImpl implements EstudianteService {
         Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
         Estudiante estudiante = estudianteRepositorio.findByIdConRol(idEstudiante)
                 .orElseThrow(() -> new RecursoNoEncontradoException("Estudiante no encontrado"));
+        return aPerfilDTO(estudiante);
+    }
 
+    /**
+     * END-PROF-02: actualiza nombres, apellidos y universidad del estudiante autenticado.
+     * El correo, el rol y el resto de sus datos no se tocan.
+     */
+    @Override
+    @Transactional
+    public PerfilResponseDTO actualizarPerfil(PerfilRequestDTO dto) {
+        Estudiante estudiante = estudianteAutenticado.obtener();
+
+        estudiante.setNombres(dto.getNombres().trim());
+        estudiante.setApellidos(dto.getApellidos().trim());
+        estudiante.setUniversidad(limpiarTexto(dto.getUniversidad()));
+        estudianteRepositorio.save(estudiante);
+        return aPerfilDTO(estudiante);
+    }
+
+    /** Datos personales, preferencias y plan vigente; compartido por END-PROF-01 y 02 */
+    private PerfilResponseDTO aPerfilDTO(Estudiante estudiante) {
         String rol = estudiante.getRol().getNombre();
         Plan plan = planRepositorio.findByRolIdRol(estudiante.getRol().getIdRol())
                 .orElseThrow(() -> new IllegalStateException("No existe un plan para el rol " + rol));
@@ -52,5 +73,13 @@ public class EstudianteServiceImpl implements EstudianteService {
         planDTO.setMaxRecordatorios(plan.getMaxRecordatorios());
         dto.setPlan(planDTO);
         return dto;
+    }
+
+    // Texto opcional: si viene vacio o con solo espacios se guarda null
+    private String limpiarTexto(String texto) {
+        if (texto == null || texto.isBlank()) {
+            return null;
+        }
+        return texto.trim();
     }
 }
