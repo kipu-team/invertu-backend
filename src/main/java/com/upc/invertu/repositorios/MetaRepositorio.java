@@ -16,6 +16,9 @@ public interface MetaRepositorio extends JpaRepository<Meta, Long> {
     /** END-GOAL-04: metas en varios estados (CUMPLIDA y CANCELADA), de la mas reciente a la mas antigua. */
     List<Meta> findByEstudianteIdEstudianteAndEstadoInOrderByFechaActualizacionDesc(Long idEstudiante, List<EstadoMeta> estados);
 
+    /** END-CAL-01: metas de un estado (ACTIVA) para generar los eventos del calendario. */
+    List<Meta> findByEstudianteIdEstudianteAndEstado(Long idEstudiante, EstadoMeta estado);
+
     /** END-GOAL-05, 06 y 07: solo encuentra la meta si pertenece al estudiante. */
     Optional<Meta> findByIdMetaAndEstudianteIdEstudiante(Long idMeta, Long idEstudiante);
 }
