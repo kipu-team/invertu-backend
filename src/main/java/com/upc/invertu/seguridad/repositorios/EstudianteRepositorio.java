@@ -15,4 +15,8 @@ public interface EstudianteRepositorio extends JpaRepository<Estudiante, Long> {
     /** END-AUTH-02: usado por CustomUserDetailsService para cargar al estudiante con su rol. */
     @Query("SELECT e FROM Estudiante e JOIN FETCH e.rol WHERE e.correo = :correo")
     Optional<Estudiante> findByCorreoConRol(@Param("correo") String correo);
+
+    /** END-PROF-01: obtiene al estudiante por id junto con su rol. */
+    @Query("SELECT e FROM Estudiante e JOIN FETCH e.rol WHERE e.idEstudiante = :idEstudiante")
+    Optional<Estudiante> findByIdConRol(@Param("idEstudiante") Long idEstudiante);
 }
