@@ -91,6 +91,13 @@ public class MetaController {
         return ResponseEntity.ok(metaService.cancelar(id));
     }
 
+    /** END-GOAL-11: elimina una meta propia ACTIVA sin aportes (Free y Premium). 404 si no existe o es de otro estudiante */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<MensajeResponseDTO> eliminar(@PathVariable Long id) {
+        return ResponseEntity.ok(metaService.eliminar(id));
+    }
+
     /** END-GOAL-14: reactiva una meta propia CANCELADA (Free y Premium). 403 si Free alcanzo su limite */
     @PatchMapping("/{id}/reactivar")
     @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
