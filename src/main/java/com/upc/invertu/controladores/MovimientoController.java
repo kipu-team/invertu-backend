@@ -1,20 +1,20 @@
 package com.upc.invertu.controladores;
 
 import com.upc.invertu.dtos.request.MovimientoRequestDTO;
-import com.upc.invertu.dtos.response.MensajeResponseDTO;
-import com.upc.invertu.dtos.response.MovimientoDetalleResponseDTO;
-import com.upc.invertu.dtos.response.MovimientoListaResponseDTO;
-import com.upc.invertu.dtos.response.MovimientoResponseDTO;
+import com.upc.invertu.dtos.response.*;
 import com.upc.invertu.entidades.enums.Clasificacion;
 import com.upc.invertu.entidades.enums.MedioPago;
 import com.upc.invertu.entidades.enums.TipoMovimiento;
+import com.upc.invertu.servicios.ComprobanteService;
 import com.upc.invertu.servicios.MovimientoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /** END-TRX-01 a 06 */
 @RestController
@@ -23,6 +23,9 @@ public class MovimientoController {
 
     @Autowired
     private MovimientoService movimientoService;
+
+    @Autowired
+    private ComprobanteService comprobanteService;
 
     /** END-TRX-02: registra un ingreso o gasto (Free y Premium) */
     @PostMapping
@@ -70,5 +73,12 @@ public class MovimientoController {
     @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
     public ResponseEntity<MensajeResponseDTO> eliminar(@PathVariable Long id) {
         return ResponseEntity.ok(movimientoService.eliminar(id));
+    }
+    /** END-TRX-03: analiza un comprobante (JPG, PNG o PDF de hasta 5 MB) con IA. Solo Premium: un estudiante Free recibe 403. No registra el movimiento */
+    @PostMapping(value = "/analisis-comprobante", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('PREMIUM')")
+    public ResponseEntity<AnalisisComprobanteResponseDTO> analizarComprobante(
+            @RequestParam("archivo") MultipartFile archivo) {
+        return ResponseEntity.ok(comprobanteService.analizar(archivo));
     }
 }

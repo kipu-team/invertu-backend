@@ -11,6 +11,8 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -89,9 +91,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({HttpMessageNotReadableException.class,
             MethodArgumentTypeMismatchException.class,
-            MissingServletRequestParameterException.class})
+            MissingServletRequestParameterException.class,
+            MissingServletRequestPartException.class})
     public ResponseEntity<ErrorResponseDTO> formatoInvalido(Exception ex) {
         return respuesta(HttpStatus.BAD_REQUEST, "Datos inválidos");
+    }
+
+    /** END-TRX-03: el archivo supera el tamano maximo (spring.servlet.multipart.max-file-size). */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponseDTO> archivoMuyGrande(MaxUploadSizeExceededException ex) {
+        return respuesta(HttpStatus.BAD_REQUEST, "Solo se aceptan archivos JPG, PNG o PDF de hasta 5 MB");
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
