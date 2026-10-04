@@ -82,4 +82,9 @@ public interface MovimientoRepositorio extends JpaRepository<Movimiento, Long> {
                                        @Param("tipo") TipoMovimiento tipo,
                                        @Param("inicio") LocalDate inicio,
                                        @Param("fin") LocalDate fin);
+
+    List<Movimiento> findBySuscripcionIdSuscripcionOrderByFechaDesc(Long idSuscripcion);
+
+    boolean existsBySuscripcionIdSuscripcionAndTipoAndFechaGreaterThanEqual(
+            Long idSuscripcion, String tipo, LocalDate fecha);
 }
