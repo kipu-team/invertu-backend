@@ -4,8 +4,34 @@
     <meta charset="UTF-8">
     <title>Recordatorio de cobro</title>
 </head>
-<body>
-<!-- TODO: diseño del correo. Datos: Nombre del servicio, monto y fecha de cobro. -->
-<h2>Recordatorio de cobro</h2>
+<body style="margin:0;padding:24px;background-color:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2933;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="480" cellspacing="0" cellpadding="0"
+                   style="max-width:480px;background-color:#ffffff;border-radius:8px;padding:32px;">
+                <tr>
+                    <td>
+                        <h2 style="margin:0 0 16px;color:#0b5394;">Recordatorio de cobro</h2>
+                        <p style="margin:0 0 12px;">Hola <span th:text="${nombres}">estudiante</span>,</p>
+                        <p style="margin:0 0 24px;">
+                            Tu suscripción a <strong th:text="${servicio}">Spotify Premium</strong>
+                            (<strong th:text="${monto}">S/ 19.90</strong>) se cobrará el
+                            <strong th:text="${fechaCobro}">05/10/2026</strong>.
+                        </p>
+                        <p style="margin:0 0 12px;font-size:14px;">
+                            Revisa que tengas fondos suficientes y, cuando se realice el cobro, registra el pago
+                            en InvertU para mantener tus movimientos al día.
+                        </p>
+                        <p style="margin:0;font-size:13px;color:#6b7280;">
+                            Recibes este correo porque activaste el recordatorio de esta suscripción.
+                            Puedes desactivarlo desde su detalle en InvertU.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
 </body>
 </html>

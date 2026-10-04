@@ -35,6 +35,28 @@ public class CorreoServiceImpl implements CorreoService {
         contexto.setVariable("minutos", minutosVigencia);
         enviar(correo, "InvertU - Recupera tu contraseña", "correo-recuperacion", contexto);
     }
+    @Override
+    public void enviarRecordatorioCobro(String correo, String nombres, String servicio, String monto,
+                                        String fechaCobro) {
+        Context contexto = new Context();
+        contexto.setVariable("nombres", nombres);
+        contexto.setVariable("servicio", servicio);
+        contexto.setVariable("monto", monto);
+        contexto.setVariable("fechaCobro", fechaCobro);
+        enviar(correo, "InvertU - Recordatorio de cobro de " + servicio, "correo-recordatorio", contexto);
+    }
+
+    @Override
+    public void enviarAlertaSaldo(String correo, String nombres, String servicio, String monto,
+                                  String fechaCobro, String disponible) {
+        Context contexto = new Context();
+        contexto.setVariable("nombres", nombres);
+        contexto.setVariable("servicio", servicio);
+        contexto.setVariable("monto", monto);
+        contexto.setVariable("fechaCobro", fechaCobro);
+        contexto.setVariable("disponible", disponible);
+        enviar(correo, "InvertU - Tu disponible no cubre el cobro de " + servicio, "correo-alerta-saldo", contexto);
+    }
 
     // Arma el HTML con la plantilla y lo envia por SMTP; cualquier fallo -> ServicioExternoException
     private void enviar(String destino, String asunto, String plantilla, Context contexto) {
