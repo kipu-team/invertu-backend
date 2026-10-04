@@ -1,13 +1,19 @@
 package com.upc.invertu.dtos.response;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** END-DASH-03 */
+import java.util.List;
+
+/** END-DASH-03: datos de los graficos del mes (listas vacias cuando no hay datos, nunca null) */
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class GraficosResponseDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
+    private List<SemanaGraficoResponseDTO> evolucionSemanal;
+    private List<TotalCategoriaResponseDTO> gastosPorCategoria;   // de mayor a menor
+    private List<TotalCategoriaResponseDTO> ingresosPorFuente;    // de mayor a menor
 }

@@ -1,5 +1,6 @@
 package com.upc.invertu.controladores;
 
+import com.upc.invertu.dtos.response.GraficosResponseDTO;
 import com.upc.invertu.dtos.response.IndicadoresResponseDTO;
 import com.upc.invertu.dtos.response.OrientacionResponseDTO;
 import com.upc.invertu.servicios.InicioService;
@@ -15,7 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/inicio")
 public class InicioController {
-    // TODO: endpoint END-DASH-03
 
     @Autowired
     private InicioService inicioService;
@@ -32,5 +32,12 @@ public class InicioController {
     @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
     public ResponseEntity<IndicadoresResponseDTO> obtenerIndicadores(@RequestParam int anio, @RequestParam int mes) {
         return ResponseEntity.ok(inicioService.obtenerIndicadores(anio, mes));
+    }
+
+    /** END-DASH-03 (US-06 y US-08): datos de los graficos del mes actual o de un mes anterior */
+    @GetMapping("/graficos")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<GraficosResponseDTO> obtenerGraficos(@RequestParam int anio, @RequestParam int mes) {
+        return ResponseEntity.ok(inicioService.obtenerGraficos(anio, mes));
     }
 }
