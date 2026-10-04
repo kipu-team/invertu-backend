@@ -11,11 +11,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /** END-SUB-01 a 09 */
@@ -62,5 +64,33 @@ public class SuscripcionController {
     @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
     public ResponseEntity<List<String>> listarFrecuencias() {
         return ResponseEntity.ok(suscripcionService.listarFrecuencias());
+    }
+
+    @Operation(summary = "Cancelar una suscripción activa (END-SUB-06)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Suscripción cancelada correctamente"),
+            @ApiResponse(responseCode = "400", description = "La suscripción no está activa"),
+            @ApiResponse(responseCode = "401", description = "No autenticado"),
+            @ApiResponse(responseCode = "404", description = "Suscripción no encontrada")
+    })
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    @PatchMapping("/{id}/cancelar")
+    public ResponseEntity<SuscripcionResponseDTO> cancelar(@PathVariable Long id) {
+        return ResponseEntity.ok(suscripcionService.cancelarSuscripcion(id));
+    }
+
+    @Operation(summary = "Reactivar una suscripción cancelada (END-SUB-07)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Suscripción reactivada correctamente"),
+            @ApiResponse(responseCode = "400", description = "La suscripción no está cancelada o la fecha es anterior a hoy"),
+            @ApiResponse(responseCode = "401", description = "No autenticado"),
+            @ApiResponse(responseCode = "404", description = "Suscripción no encontrada")
+    })
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    @PatchMapping("/{id}/reactivar")
+    public ResponseEntity<SuscripcionResponseDTO> reactivar(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate proximaFechaCobro) {
+        return ResponseEntity.ok(suscripcionService.reactivarSuscripcion(id, proximaFechaCobro));
     }
 }

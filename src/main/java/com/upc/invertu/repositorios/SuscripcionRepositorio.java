@@ -17,4 +17,6 @@ public interface SuscripcionRepositorio extends JpaRepository<Suscripcion, Long>
     /** END-TRX-02 y 05: la suscripcion debe ser del estudiante y estar en el estado indicado (ACTIVA). */
     Optional<Suscripcion> findByIdSuscripcionAndEstudianteIdEstudianteAndEstado(
             Long idSuscripcion, Long idEstudiante, EstadoSuscripcion estado);
+
+    java.util.Optional<Suscripcion> findByIdSuscripcionAndEstudianteIdEstudiante(Long idSuscripcion, Long idEstudiante);
 }

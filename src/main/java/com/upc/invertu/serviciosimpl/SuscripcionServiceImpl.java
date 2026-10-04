@@ -10,9 +10,12 @@ import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.utilidades.EstudianteAutenticado;
 import com.upc.invertu.servicios.SuscripcionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -73,5 +76,56 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         dto.setFechaCreacion(suscripcion.getFechaCreacion());
         dto.setFechaActualizacion(suscripcion.getFechaActualizacion());
         return dto;
+    }
+
+    @Override
+    @Transactional
+    public SuscripcionResponseDTO cancelarSuscripcion(Long id) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+
+        Suscripcion suscripcion = suscripcionRepositorio
+                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+
+        if (suscripcion.getEstado() != EstadoSuscripcion.ACTIVA) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Solo puedes cancelar suscripciones activas");
+        }
+
+        suscripcion.setEstado(EstadoSuscripcion.CANCELADA);
+        suscripcion.setFechaCancelacion(LocalDate.now());
+        suscripcion.setRecordatorioActivo(false);
+        suscripcion.setAlertaSaldoActiva(false);
+        suscripcion.setDiasAnticipacion(null);
+
+        return aDTO(suscripcionRepositorio.save(suscripcion));
+    }
+
+    @Override
+    @Transactional
+    public SuscripcionResponseDTO reactivarSuscripcion(Long id, LocalDate proximaFechaCobro) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+
+        Suscripcion suscripcion = suscripcionRepositorio
+                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+
+        if (suscripcion.getEstado() != EstadoSuscripcion.CANCELADA) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Solo puedes reactivar suscripciones canceladas");
+        }
+
+        if (proximaFechaCobro.isBefore(LocalDate.now())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "La próxima fecha de cobro no puede ser anterior a hoy");
+        }
+
+        suscripcion.setEstado(EstadoSuscripcion.ACTIVA);
+        suscripcion.setFechaCancelacion(null);
+        suscripcion.setProximaFechaCobro(proximaFechaCobro);
+
+        return aDTO(suscripcionRepositorio.save(suscripcion));
     }
 }
