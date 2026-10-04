@@ -43,6 +43,10 @@ public class MovimientoRequestDTO {
     // Opcional
     private MedioPago medioPago;
 
-    // Opcional, solo para gastos (pago de una suscripcion)
+    // Opcional solo para gastos (pago de una suscripcion)
     private Long idSuscripcion;
+
+    // Opcional referencia que devolvio END-TRX-03 (registro con IA). Solo se usa al registrar, no al editar
+    @Size(max = 50, message = "El comprobante no es válido o ya expiró")
+    private String comprobanteRef;
 }

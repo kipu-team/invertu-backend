@@ -19,7 +19,7 @@ public interface SuscripcionRepositorio extends JpaRepository<Suscripcion, Long>
             Long idSuscripcion, Long idEstudiante, EstadoSuscripcion estado);
 
     List<Suscripcion> findByEstudianteIdEstudianteOrderByProximaFechaCobroAsc(Long idEstudiante);
-    List<Suscripcion> findByEstudianteIdEstudianteAndEstadoOrderByProximaFechaCobroAsc(Long idEstudiante, String estado);
+    List<Suscripcion> findByEstudianteIdEstudianteAndEstadoOrderByProximaFechaCobroAsc(Long idEstudiante, EstadoSuscripcion estado);
+    Optional<Suscripcion> findByIdSuscripcionAndEstudianteIdEstudiante(Long idSuscripcion, Long idEstudiante);
 
-    Optional<Suscripcion> findByIdSuscripcionAndEstudianteTdEstudiante(Long idSuscripcion, Long idEstudiante);
 }

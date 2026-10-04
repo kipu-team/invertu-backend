@@ -13,9 +13,12 @@ import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.utilidades.EstudianteAutenticado;
 import com.upc.invertu.servicios.SuscripcionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -80,7 +83,7 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         dto.setFechaActualizacion(suscripcion.getFechaActualizacion());
         return dto;
     }
-    //US-27 (END-SUB-03) =====
+    // ===== IMPLEMENTACIÓN DE LA US-27 (END-SUB-03) =====
     @Override
     @Transactional(readOnly = true)
     public List<SuscripcionResumenResponseDTO> listar(String estado) {
@@ -121,7 +124,7 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
 
         Suscripcion s = suscripcionRepositorio
-                .findByIdSuscripcionAndEstudianteTdEstudiante(idSuscripcion, idEstudiante)
+                .findByIdSuscripcionAndEstudianteIdEstudiante(idSuscripcion, idEstudiante)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
 
@@ -129,7 +132,9 @@ public class SuscripcionServiceImpl implements SuscripcionService {
                 .findBySuscripcionIdSuscripcionOrderByFechaDesc(s.getIdSuscripcion())
                 .stream()
                 .map(m -> new SuscripcionDetalleResponseDTO.PagoHistorialDTO(
-                        m.getFecha(), m.getMonto(), m.getMedioPago().name()))
+                        m.getFecha(), 
+                        m.getMonto(), 
+                        m.getMedioPago() != null ? m.getMedioPago().name() : "OTRO"))
                 .toList();
 
         return new SuscripcionDetalleResponseDTO(
@@ -143,6 +148,59 @@ public class SuscripcionServiceImpl implements SuscripcionService {
                 s.getFechaCreacion(),
                 calcularPagoSinRegistrar(s),
                 pagos);
+    }
+
+    // ===== IMPLEMENTACIÓN DE LA US-30 (END-SUB-06) =====
+    @Override
+    @Transactional
+    public SuscripcionResponseDTO cancelarSuscripcion(Long id) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+
+        Suscripcion suscripcion = suscripcionRepositorio
+                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+
+        if (suscripcion.getEstado() != EstadoSuscripcion.ACTIVA) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Solo puedes cancelar suscripciones activas");
+        }
+
+        suscripcion.setEstado(EstadoSuscripcion.CANCELADA);
+        suscripcion.setFechaCancelacion(LocalDate.now());
+        suscripcion.setRecordatorioActivo(false);
+        suscripcion.setAlertaSaldoActiva(false);
+        suscripcion.setDiasAnticipacion(null);
+
+        return aDTO(suscripcionRepositorio.save(suscripcion));
+    }
+
+    // ===== IMPLEMENTACIÓN DE LA US-30 (END-SUB-07) =====
+    @Override
+    @Transactional
+    public SuscripcionResponseDTO reactivarSuscripcion(Long id, LocalDate proximaFechaCobro) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+
+        Suscripcion suscripcion = suscripcionRepositorio
+                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+
+        if (suscripcion.getEstado() != EstadoSuscripcion.CANCELADA) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Solo puedes reactivar suscripciones canceladas");
+        }
+
+        if (proximaFechaCobro.isBefore(LocalDate.now())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "La próxima fecha de cobro no puede ser anterior a hoy");
+        }
+
+        suscripcion.setEstado(EstadoSuscripcion.ACTIVA);
+        suscripcion.setFechaCancelacion(null);
+        suscripcion.setProximaFechaCobro(proximaFechaCobro);
+
+        return aDTO(suscripcionRepositorio.save(suscripcion));
     }
 
     // ---------- Métodos Auxiliares para el cálculo ----------
