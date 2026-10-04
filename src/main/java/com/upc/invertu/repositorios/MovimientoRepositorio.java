@@ -54,4 +54,32 @@ public interface MovimientoRepositorio extends JpaRepository<Movimiento, Long> {
     List<Object[]> totalesDelMes(@Param("idEstudiante") Long idEstudiante,
                                  @Param("inicio") LocalDate inicio,
                                  @Param("fin") LocalDate fin);
+
+    /**
+     * END-DASH-03 (US-08): sumas del mes por dia y tipo. Cada fila es [fecha, tipo, suma].
+     * Las semanas (1-7, 8-14, ...) se arman en InicioServiceImpl.
+     */
+    @Query("SELECT m.fecha, m.tipo, SUM(m.monto) FROM Movimiento m " +
+            "WHERE m.estudiante.idEstudiante = :idEstudiante " +
+            "AND m.fecha BETWEEN :inicio AND :fin " +
+            "GROUP BY m.fecha, m.tipo " +
+            "ORDER BY m.fecha")
+    List<Object[]> evolucionSemanal(@Param("idEstudiante") Long idEstudiante,
+                                    @Param("inicio") LocalDate inicio,
+                                    @Param("fin") LocalDate fin);
+
+    /**
+     * END-DASH-03 (US-08): total del mes por categoria para un tipo (INGRESO o GASTO), de mayor a menor.
+     * Cada fila es [nombreCategoria, suma]. Incluye categorias desactivadas si tienen movimientos.
+     */
+    @Query("SELECT m.categoria.nombre, SUM(m.monto) FROM Movimiento m " +
+            "WHERE m.estudiante.idEstudiante = :idEstudiante " +
+            "AND m.tipo = :tipo " +
+            "AND m.fecha BETWEEN :inicio AND :fin " +
+            "GROUP BY m.categoria.idCategoria, m.categoria.nombre " +
+            "ORDER BY SUM(m.monto) DESC")
+    List<Object[]> totalesPorCategoria(@Param("idEstudiante") Long idEstudiante,
+                                       @Param("tipo") TipoMovimiento tipo,
+                                       @Param("inicio") LocalDate inicio,
+                                       @Param("fin") LocalDate fin);
 }
