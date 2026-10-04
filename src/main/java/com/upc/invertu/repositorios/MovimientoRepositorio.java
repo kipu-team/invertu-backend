@@ -42,4 +42,16 @@ public interface MovimientoRepositorio extends JpaRepository<Movimiento, Long> {
 
     /** END-DASH-01 (US-05): indica si el estudiante tiene al menos un movimiento (ingreso o gasto). */
     boolean existsByEstudianteIdEstudiante(Long idEstudiante);
+
+    /**
+     * END-DASH-02 (US-07): totales del mes agrupados por tipo y clasificacion.
+     * Cada fila es [tipo, clasificacion, suma]. Si no hay movimientos, la lista llega vacia.
+     */
+    @Query("SELECT m.tipo, m.clasificacion, COALESCE(SUM(m.monto), 0) FROM Movimiento m " +
+            "WHERE m.estudiante.idEstudiante = :idEstudiante " +
+            "AND m.fecha BETWEEN :inicio AND :fin " +
+            "GROUP BY m.tipo, m.clasificacion")
+    List<Object[]> totalesDelMes(@Param("idEstudiante") Long idEstudiante,
+                                 @Param("inicio") LocalDate inicio,
+                                 @Param("fin") LocalDate fin);
 }
