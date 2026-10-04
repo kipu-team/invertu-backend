@@ -1,11 +1,13 @@
 package com.upc.invertu.repositorios;
 
 import com.upc.invertu.entidades.Aporte;
+import com.upc.invertu.entidades.enums.EstadoMeta;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,4 +30,19 @@ public interface AporteRepositorio extends JpaRepository<Aporte, Long> {
                                                                               Long idEstudiante);
     /** END-GOAL-11: verifica si la meta tiene aportes registrados. */
     boolean existsByMetaIdMeta(Long idMeta);
+
+    /** END-DASH-02 (US-07): suma de los aportes del estudiante registrados en el mes (0 si no hay). */
+    @Query("SELECT COALESCE(SUM(a.monto), 0) FROM Aporte a " +
+            "WHERE a.meta.estudiante.idEstudiante = :idEstudiante " +
+            "AND a.fecha BETWEEN :inicio AND :fin")
+    BigDecimal aportesDelMes(@Param("idEstudiante") Long idEstudiante,
+                             @Param("inicio") LocalDate inicio,
+                             @Param("fin") LocalDate fin);
+
+    /** END-DASH-02 (US-07): suma de todos los aportes de las metas en los estados indicados (0 si no hay). */
+    @Query("SELECT COALESCE(SUM(a.monto), 0) FROM Aporte a " +
+            "WHERE a.meta.estudiante.idEstudiante = :idEstudiante " +
+            "AND a.meta.estado IN :estados")
+    BigDecimal ahorroTotal(@Param("idEstudiante") Long idEstudiante,
+                           @Param("estados") List<EstadoMeta> estados);
 }
