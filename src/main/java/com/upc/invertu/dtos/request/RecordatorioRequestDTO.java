@@ -10,9 +10,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class RecordatorioRequestDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
     @NotNull(message = "El campo activo es obligatorio")
     private Boolean activo;
-
+    // 1, 3 o 7; obligatorio solo si activo = true, se valida en el Service
     private Integer diasAnticipacion;
 }

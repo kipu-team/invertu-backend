@@ -1,9 +1,10 @@
 package com.upc.invertu.controladores;
 
+import com.upc.invertu.dtos.request.AlertaSaldoRequestDTO;
+import com.upc.invertu.dtos.request.ReactivarSuscripcionRequestDTO;
+import com.upc.invertu.dtos.request.RecordatorioRequestDTO;
 import com.upc.invertu.dtos.request.SuscripcionRequestDTO;
-import com.upc.invertu.dtos.response.SuscripcionDetalleResponseDTO;
-import com.upc.invertu.dtos.response.SuscripcionResponseDTO;
-import com.upc.invertu.dtos.response.SuscripcionResumenResponseDTO;
+import com.upc.invertu.dtos.response.*;
 import com.upc.invertu.excepciones.ErrorResponseDTO;
 import com.upc.invertu.servicios.SuscripcionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,13 +14,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.upc.invertu.dtos.request.AlertaSaldoRequestDTO;
+import com.upc.invertu.dtos.request.ReactivarSuscripcionRequestDTO;
+import com.upc.invertu.dtos.request.RecordatorioRequestDTO;
+import com.upc.invertu.dtos.response.AlertaSaldoResponseDTO;
+import com.upc.invertu.dtos.response.RecordatorioResponseDTO;
 
-import java.time.LocalDate;
 import java.util.List;
 
 /** END-SUB-01 a 09 */
@@ -134,8 +138,8 @@ public class SuscripcionController {
     @PatchMapping("/{id}/reactivar")
     public ResponseEntity<SuscripcionResponseDTO> reactivar(
             @PathVariable Long id,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate proximaFechaCobro) {
-        return ResponseEntity.ok(suscripcionService.reactivarSuscripcion(id, proximaFechaCobro));
+            @Valid @RequestBody ReactivarSuscripcionRequestDTO request) {
+        return ResponseEntity.ok(suscripcionService.reactivarSuscripcion(id, request.getProximaFechaCobro()));
     }
 
     @PutMapping("/{id}")
@@ -154,18 +158,35 @@ public class SuscripcionController {
         return ResponseEntity.ok(suscripcionService.editarSuscripcion(id, request));
     }
 
-    /** END-SUB-09: Configurar o apagar la alerta de saldo insuficiente */
-    @Operation(summary = "Configurar alerta de saldo (END-SUB-09)", description = "Activa o desactiva la alerta de saldo insuficiente para una suscripción activa.")
+    /** END-SUB-08 (US-31): activa o desactiva el recordatorio por correo. Free: hasta 3 activos (403) */
+    @Operation(summary = "Configurar recordatorio de cobro (END-SUB-08)", description = "Activa o desactiva el recordatorio por correo de una suscripción activa (1, 3 o 7 días antes del cobro).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Recordatorio configurado correctamente"),
+            @ApiResponse(responseCode = "400", description = "Días de anticipación no válidos o la suscripción no está activa"),
+            @ApiResponse(responseCode = "403", description = "Se alcanzó el límite de recordatorios del plan Free"),
+            @ApiResponse(responseCode = "404", description = "Suscripción no encontrada")
+    })
+    @PutMapping("/{id}/recordatorio")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<RecordatorioResponseDTO> configurarRecordatorio(
+            @PathVariable Long id,
+            @Valid @RequestBody RecordatorioRequestDTO request) {
+        return ResponseEntity.ok(suscripcionService.configurarRecordatorio(id, request));
+    }
+
+    /** END-SUB-09 de US-32: activa o desactiva la alerta de saldo insuficiente. Solo Premium ya que Free recibe 403 */
+    @Operation(summary = "Configurar alerta de saldo (END-SUB-09)", description = "Activa o desactiva la alerta de saldo insuficiente para una suscripción activa. Solo plan Premium.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Alerta de saldo configurada correctamente"),
             @ApiResponse(responseCode = "400", description = "La suscripción no está activa"),
+            @ApiResponse(responseCode = "403", description = "Función exclusiva del plan Premium"),
             @ApiResponse(responseCode = "404", description = "Suscripción no encontrada")
     })
     @PutMapping("/{id}/alerta-saldo")
-    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
-    public ResponseEntity<SuscripcionResponseDTO> configurarAlertaSaldo(
+    @PreAuthorize("hasRole('PREMIUM')")
+    public ResponseEntity<AlertaSaldoResponseDTO> configurarAlertaSaldo(
             @PathVariable Long id,
-            @jakarta.validation.Valid @RequestBody com.upc.invertu.dtos.request.AlertaSaldoRequestDTO request) {
+            @Valid @RequestBody AlertaSaldoRequestDTO request) {
         return ResponseEntity.ok(suscripcionService.configurarAlertaSaldo(id, request));
     }
 
