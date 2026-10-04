@@ -1,5 +1,6 @@
 package com.upc.invertu.seguridad.dtos.response;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -8,6 +9,9 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class PasarPremiumResponseDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
+    private String rol;      // ROLE_PREMIUM
+    private String token;    // JWT renovado con el nuevo rol
+    private String mensaje;  // "¡Ya eres Premium!"
 }

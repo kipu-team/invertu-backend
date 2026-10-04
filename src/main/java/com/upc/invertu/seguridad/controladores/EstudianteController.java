@@ -1,5 +1,7 @@
 package com.upc.invertu.seguridad.controladores;
 
+import com.upc.invertu.seguridad.dtos.response.PasarPremiumResponseDTO;
+import org.springframework.web.bind.annotation.PostMapping;
 import com.upc.invertu.dtos.response.MensajeResponseDTO;
 import com.upc.invertu.seguridad.dtos.request.CambiarContrasenaRequestDTO;
 import com.upc.invertu.seguridad.dtos.request.PerfilRequestDTO;
@@ -53,5 +55,15 @@ public class EstudianteController {
     @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
     public ResponseEntity<MensajeResponseDTO> cambiarContrasena(@RequestBody CambiarContrasenaRequestDTO dto) {
         return ResponseEntity.ok(estudianteService.cambiarContrasena(dto));
+    }
+
+    /**
+     * END-PROF-05: activa el plan Premium en version de prueba (pago simulado, sin cobro).
+     * Free y Premium pueden llamarlo; si ya es Premium el service responde 400.
+     */
+    @PostMapping("/pasar-premium")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<PasarPremiumResponseDTO> pasarAPremium() {
+        return ResponseEntity.ok(estudianteService.pasarAPremium());
     }
 }

@@ -20,6 +20,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.upc.invertu.configuracion.DataInitializer;
+import com.upc.invertu.seguridad.dtos.response.PasarPremiumResponseDTO;
+import com.upc.invertu.seguridad.entidades.Rol;
+import com.upc.invertu.seguridad.repositorios.RolRepositorio;
+import com.upc.invertu.seguridad.servicios.CustomUserDetailsService;
+import com.upc.invertu.seguridad.utilidades.JwtUtil;
 
 @Service
 public class EstudianteServiceImpl implements EstudianteService {
@@ -36,6 +42,15 @@ public class EstudianteServiceImpl implements EstudianteService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private RolRepositorio rolRepositorio;
+
+    @Autowired
+    private CustomUserDetailsService userDetailsService;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     // Mismos requisitos que en el registro (END-AUTH-01)
     private static final String POLITICA_CONTRASENA = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9\\s]).{8,}$";
@@ -119,6 +134,33 @@ public class EstudianteServiceImpl implements EstudianteService {
         estudiante.setPasswordHash(passwordEncoder.encode(nuevaContrasena));
         estudianteRepositorio.save(estudiante);
         return new MensajeResponseDTO("Tu contraseña se actualizó correctamente");
+    }
+
+
+    /**
+     * END-PROF-05: cambia el rol del estudiante a ROLE_PREMIUM (version de prueba: no hay pago ni cobro)
+     * y devuelve un token nuevo con el rol actualizado. Solo cambia el rol; el resto de sus datos se conserva.
+     */
+    @Override
+    @Transactional
+    public PasarPremiumResponseDTO pasarAPremium() {
+        Estudiante estudiante = estudianteAutenticado.obtener();
+
+        // El backend vuelve a validar el plan aunque la interfaz oculte el boton a los Premium
+        if (DataInitializer.ROLE_PREMIUM.equals(estudiante.getRol().getNombre())) {
+            throw new ReglaNegocioException("Ya cuentas con el plan Premium");
+        }
+
+        // DataInitializer crea el rol al iniciar; si faltara es un error de configuracion (500)
+        Rol rolPremium = rolRepositorio.findByNombre(DataInitializer.ROLE_PREMIUM)
+                .orElseThrow(() -> new IllegalStateException("No existe el rol " + DataInitializer.ROLE_PREMIUM));
+
+        estudiante.setRol(rolPremium);
+        estudianteRepositorio.saveAndFlush(estudiante);
+
+        // Token renovado: el claim "rol" ya dice ROLE_PREMIUM
+        String token = jwtUtil.generarToken(userDetailsService.loadUserByUsername(estudiante.getCorreo()));
+        return new PasarPremiumResponseDTO(rolPremium.getNombre(), token, "¡Ya eres Premium!");
     }
 
     /** Datos personales, preferencias y plan vigente; compartido por END-PROF-01 y 02 */
