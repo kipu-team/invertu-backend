@@ -3,8 +3,10 @@ package com.upc.invertu.serviciosimpl;
 import com.upc.invertu.dtos.response.AnalisisComprobanteResponseDTO;
 import com.upc.invertu.entidades.enums.TipoMovimiento;
 import com.upc.invertu.excepciones.ArchivoNoProcesableException;
+import com.upc.invertu.excepciones.LimiteIntentosException;
 import com.upc.invertu.excepciones.ReglaNegocioException;
 import com.upc.invertu.integraciones.ComprobanteIaCliente;
+import com.upc.invertu.seguridad.servicios.LimiteIntentosService;
 import com.upc.invertu.seguridad.utilidades.EstudianteAutenticado;
 import com.upc.invertu.servicios.AlmacenamientoService;
 import com.upc.invertu.servicios.ComprobanteService;
@@ -16,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
@@ -26,6 +29,7 @@ public class ComprobanteServiceImpl implements ComprobanteService {
     private static final long TAMANIO_MAXIMO = 5 * 1024 * 1024; // 5 MB en bytes
     private static final String ARCHIVO_NO_VALIDO = "Solo se aceptan archivos JPG, PNG o PDF de hasta 5 MB";
     private static final String NO_LEGIBLE = "No pudimos leer tu comprobante. Completa los datos manualmente";
+    private static final int MAX_POR_HORA = 10;
 
     @Autowired
     private ComprobanteIaCliente comprobanteIaCliente;
@@ -36,6 +40,9 @@ public class ComprobanteServiceImpl implements ComprobanteService {
     @Autowired
     private EstudianteAutenticado estudianteAutenticado;
 
+    @Autowired
+    private LimiteIntentosService limiteIntentosService;
+
     /** END-TRX-03 (solo Premium, validado en el controller): analiza un comprobante con IA */
     @Override
     public AnalisisComprobanteResponseDTO analizar(MultipartFile archivo) {
@@ -43,8 +50,11 @@ public class ComprobanteServiceImpl implements ComprobanteService {
         byte[] contenido = leerContenido(archivo);
         Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
 
-        // Pendiente T-48: limite de 10 comprobantes por hora (429)
-
+        // Maximo 10 analisis por hora por estudiante ya que cada analisis gasta credito de Claude (429)
+        try {
+            limiteIntentosService.registrarIntento("comprobante:" + idEstudiante, MAX_POR_HORA, Duration.ofHours(1));
+        } catch (LimiteIntentosException e) { throw new LimiteIntentosException("Alcanzaste el límite de comprobantes por hora");
+        }
         // Si la IA no reconoce un comprobante legible, el estudiante lo completa a mano (422)
         ComprobanteIaCliente.DatosLeidos leidos = comprobanteIaCliente.leerComprobante(contenido, tipoReal)
                 .filter(ComprobanteIaCliente.DatosLeidos::legible)

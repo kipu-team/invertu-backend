@@ -16,6 +16,7 @@ import com.upc.invertu.repositorios.MovimientoRepositorio;
 import com.upc.invertu.repositorios.SuscripcionRepositorio;
 import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.utilidades.EstudianteAutenticado;
+import com.upc.invertu.servicios.AlmacenamientoService;
 import com.upc.invertu.servicios.MovimientoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,9 @@ public class MovimientoServiceImpl implements MovimientoService {
     @Autowired
     private EstudianteAutenticado estudianteAutenticado;
 
+    @Autowired
+    private AlmacenamientoService almacenamientoService;
+
     /** END-TRX-02: registra un ingreso o gasto del estudiante autenticado */
     @Override
     @Transactional
@@ -49,7 +53,11 @@ public class MovimientoServiceImpl implements MovimientoService {
         Movimiento movimiento = new Movimiento();
         movimiento.setEstudiante(estudiante); // el movimiento siempre es del estudiante del token
         aplicarDatos(movimiento, dto, estudiante.getIdEstudiante());
-
+        // Registro con IA se confirma el comprobante, solo si lo subio este mismo estudiante (400 si no)
+        if (dto.getComprobanteRef() != null && !dto.getComprobanteRef().isBlank()) {
+            movimiento.setUrlComprobante(
+                    almacenamientoService.confirmar(estudiante.getIdEstudiante(), dto.getComprobanteRef()));
+        }
         return aDTO(movimientoRepositorio.save(movimiento));
     }
 
@@ -98,7 +106,7 @@ public class MovimientoServiceImpl implements MovimientoService {
         dto.setCategoria(movimiento.getCategoria().getNombre());
         dto.setMedioPago(movimiento.getMedioPago());
         dto.setSuscripcion(nombreSuscripcion(movimiento));
-        // Pendiente T-47: generar el enlace temporal (5 min) cuando existan comprobantes
+        // Pendiente despliegue (T-57) con S3 de AWS, enlace firmado de 5 minutos al comprobante
         dto.setUrlComprobante(null);
         return dto;
     }
@@ -124,9 +132,11 @@ public class MovimientoServiceImpl implements MovimientoService {
     @Transactional
     public MensajeResponseDTO eliminar(Long idMovimiento) {
         Movimiento movimiento = buscarPropio(idMovimiento, "El movimiento no existe o ya fue eliminado");
-
-        // Pendiente T-47: si tiene comprobante (urlComprobante != null), borrar tambien su archivo
+        String comprobante = movimiento.getUrlComprobante();
         movimientoRepositorio.delete(movimiento);
+
+        // Si tenia comprobante, tambien se borra su archivo
+        if (comprobante != null) {almacenamientoService.eliminar(comprobante);}
         return new MensajeResponseDTO("Movimiento eliminado");
     }
     /**
