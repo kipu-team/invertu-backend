@@ -1,5 +1,6 @@
 package com.upc.invertu.serviciosimpl;
 
+import com.upc.invertu.dtos.request.RecordatorioRequestDTO;
 import com.upc.invertu.dtos.request.SuscripcionRequestDTO;
 import com.upc.invertu.dtos.response.SuscripcionDetalleResponseDTO;
 import com.upc.invertu.dtos.response.SuscripcionResponseDTO;
@@ -247,4 +248,50 @@ public class SuscripcionServiceImpl implements SuscripcionService {
 
         return aDTO(suscripcionRepositorio.save(suscripcion));
     }
+
+    // ===== IMPLEMENTACIÓN DE LA US-31 (T-49 / END-SUB-08) =====
+    @Override
+    @Transactional
+    public SuscripcionResponseDTO configurarRecordatorio(Long id, RecordatorioRequestDTO request) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+
+        Suscripcion suscripcion = suscripcionRepositorio
+                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+
+        if (suscripcion.getEstado() != EstadoSuscripcion.ACTIVA) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se pueden configurar recordatorios en suscripciones activas");
+        }
+
+        // CORRECCIÓN AQUÍ: Cambiado a .getActivo() y .getDiasAnticipacion()
+        if (Boolean.TRUE.equals(request.getActivo())) {
+            if (request.getDiasAnticipacion() == null || !List.of(1, 3, 7).contains(request.getDiasAnticipacion())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Los días de anticipación deben ser 1, 3 o 7");
+            }
+
+            // Validar límite para rol FREE (Máximo 3 activos)
+            boolean esFree = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication().getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().contains("FREE") || a.getAuthority().contains("ROLE_FREE"));
+
+
+            if (esFree) {
+                long activos = suscripcionRepositorio.countByEstudianteIdEstudianteAndEstadoAndRecordatorioActivoTrue(idEstudiante, EstadoSuscripcion.ACTIVA);
+                if (activos >= 3 && !Boolean.TRUE.equals(suscripcion.getRecordatorioActivo())) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Los usuarios Free solo pueden activar hasta 3 recordatorios en simultáneo");
+                }
+            }
+
+            suscripcion.setRecordatorioActivo(true);
+            suscripcion.setDiasAnticipacion(request.getDiasAnticipacion()); // CORRECCIÓN AQUÍ
+        } else {
+            suscripcion.setRecordatorioActivo(false);
+            suscripcion.setDiasAnticipacion(null);
+        }
+
+        return aDTO(suscripcionRepositorio.save(suscripcion));
+    }
+
+
+
 }
