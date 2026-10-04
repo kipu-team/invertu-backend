@@ -83,8 +83,11 @@ public interface MovimientoRepositorio extends JpaRepository<Movimiento, Long> {
                                        @Param("inicio") LocalDate inicio,
                                        @Param("fin") LocalDate fin);
 
+    /** END-SUB-04 de US-27: pagos de una suscripcion, del mas reciente al mas antiguo. */
     List<Movimiento> findBySuscripcionIdSuscripcionOrderByFechaDesc(Long idSuscripcion);
 
+    /** END-SUB-03 y 04 indica si la suscripcion tiene un pago (GASTO) desde la fecha indicada. */
     boolean existsBySuscripcionIdSuscripcionAndTipoAndFechaGreaterThanEqual(
-            Long idSuscripcion, String tipo, LocalDate fecha);
+            Long idSuscripcion, TipoMovimiento tipo, LocalDate fecha);
+
 }

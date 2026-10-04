@@ -9,16 +9,19 @@ import com.upc.invertu.dtos.response.SuscripcionResumenResponseDTO;
 import com.upc.invertu.entidades.Suscripcion;
 import com.upc.invertu.entidades.enums.EstadoSuscripcion;
 import com.upc.invertu.entidades.enums.FrecuenciaSuscripcion;
+import com.upc.invertu.entidades.enums.TipoMovimiento;
+import com.upc.invertu.excepciones.LimitePlanException;
+import com.upc.invertu.excepciones.RecursoNoEncontradoException;
+import com.upc.invertu.excepciones.ReglaNegocioException;
 import com.upc.invertu.repositorios.MovimientoRepositorio;
 import com.upc.invertu.repositorios.SuscripcionRepositorio;
 import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.utilidades.EstudianteAutenticado;
 import com.upc.invertu.servicios.SuscripcionService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -52,12 +55,10 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         suscripcion.setEstado(EstadoSuscripcion.ACTIVA);
         suscripcion.setRecordatorioActivo(false);   // queda desactivado hasta que el estudiante lo configure
         suscripcion.setAlertaSaldoActiva(false);    // idem para la alerta de saldo
-        // No se crea ningun Movimiento: registrar una suscripcion no genera movimientos
 
         return aDTO(suscripcionRepositorio.save(suscripcion));
     }
 
-    /** END-SUB-02: frecuencias disponibles desde el enum, sin consultar la base de datos */
     @Override
     @Transactional(readOnly = true)
     public List<String> listarFrecuencias() {
@@ -85,7 +86,8 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         dto.setFechaActualizacion(suscripcion.getFechaActualizacion());
         return dto;
     }
-    // ===== IMPLEMENTACIÓN DE LA US-27 (END-SUB-03) =====
+
+    // Implementacion de la US-27 END-SUB-03
     @Override
     @Transactional(readOnly = true)
     public List<SuscripcionResumenResponseDTO> listar(String estado) {
@@ -102,8 +104,7 @@ public class SuscripcionServiceImpl implements SuscripcionService {
                 suscripciones = suscripcionRepositorio
                         .findByEstudianteIdEstudianteAndEstadoOrderByProximaFechaCobroAsc(idEstudiante, enumEstado);
             } catch (IllegalArgumentException e) {
-                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,
-                        "Estado inválido. Valores permitidos: ACTIVA, CANCELADA");
+                throw new ReglaNegocioException("Estado inválido. Valores permitidos: ACTIVA, CANCELADA");
             }
         }
 
@@ -118,24 +119,19 @@ public class SuscripcionServiceImpl implements SuscripcionService {
                         calcularPagoSinRegistrar(s)))
                 .toList();
     }
+    // Implementacion de la US-27 END-SUB-04
 
-    // ===== IMPLEMENTACIÓN DE LA US-27 (END-SUB-04) =====
     @Override
     @Transactional(readOnly = true)
     public SuscripcionDetalleResponseDTO obtenerDetalle(Long idSuscripcion) {
-        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
-
-        Suscripcion s = suscripcionRepositorio
-                .findByIdSuscripcionAndEstudianteIdEstudiante(idSuscripcion, idEstudiante)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-                        org.springframework.http.HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+        Suscripcion s = buscarPropia(idSuscripcion);
 
         List<SuscripcionDetalleResponseDTO.PagoHistorialDTO> pagos = movimientoRepositorio
                 .findBySuscripcionIdSuscripcionOrderByFechaDesc(s.getIdSuscripcion())
                 .stream()
                 .map(m -> new SuscripcionDetalleResponseDTO.PagoHistorialDTO(
-                        m.getFecha(), 
-                        m.getMonto(), 
+                        m.getFecha(),
+                        m.getMonto(),
                         m.getMedioPago() != null ? m.getMedioPago().name() : "OTRO"))
                 .toList();
 
@@ -152,21 +148,13 @@ public class SuscripcionServiceImpl implements SuscripcionService {
                 pagos);
     }
 
-    // ===== IMPLEMENTACIÓN DE LA US-30 (END-SUB-06) =====
+    // Implementacion de la US-30 END-SUB-06
     @Override
     @Transactional
     public SuscripcionResponseDTO cancelarSuscripcion(Long id) {
-        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+        Suscripcion suscripcion = buscarPropia(id);
 
-        Suscripcion suscripcion = suscripcionRepositorio
-                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
-
-        if (suscripcion.getEstado() != EstadoSuscripcion.ACTIVA) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Solo puedes cancelar suscripciones activas");
-        }
+        if (suscripcion.getEstado() != EstadoSuscripcion.ACTIVA) {throw new ReglaNegocioException("Solo puedes cancelar suscripciones activas");}
 
         suscripcion.setEstado(EstadoSuscripcion.CANCELADA);
         suscripcion.setFechaCancelacion(LocalDate.now());
@@ -177,25 +165,18 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         return aDTO(suscripcionRepositorio.save(suscripcion));
     }
 
-    // ===== IMPLEMENTACIÓN DE LA US-30 (END-SUB-07) =====
+    // Implementacion de la US-30 END-SUB-07
     @Override
     @Transactional
     public SuscripcionResponseDTO reactivarSuscripcion(Long id, LocalDate proximaFechaCobro) {
-        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
-
-        Suscripcion suscripcion = suscripcionRepositorio
-                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+        Suscripcion suscripcion = buscarPropia(id);
 
         if (suscripcion.getEstado() != EstadoSuscripcion.CANCELADA) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Solo puedes reactivar suscripciones canceladas");
+            throw new ReglaNegocioException("Solo puedes reactivar suscripciones canceladas");
         }
 
         if (proximaFechaCobro.isBefore(LocalDate.now())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "La próxima fecha de cobro no puede ser anterior a hoy");
+            throw new ReglaNegocioException("La fecha de cobro no puede ser anterior a hoy");
         }
 
         suscripcion.setEstado(EstadoSuscripcion.ACTIVA);
@@ -205,40 +186,47 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         return aDTO(suscripcionRepositorio.save(suscripcion));
     }
 
-    // ---------- Métodos Auxiliares para el cálculo ----------
+    // metodos auxiliares para el cálculo
 
+    /** END-SUB-03 y 04: hay un pago sin registrar si la suscripcion esta ACTIVA, su ultimo cobro (proximaFechaCobro menos un periodo) ya paso, es igual o posterior a la fecha en que se creo
+     * la suscripcion, y no hay un pago (GASTO) con fecha igual o posterior a ese cobro */
     private boolean calcularPagoSinRegistrar(Suscripcion s) {
         if (s.getEstado() != EstadoSuscripcion.ACTIVA || s.getProximaFechaCobro() == null) return false;
 
-        java.time.LocalDate ultimoCobro = restarPeriodo(s.getProximaFechaCobro(), s.getFrecuencia());
-        if (!ultimoCobro.isBefore(java.time.LocalDate.now())) return false;
+        LocalDate ultimoCobro = restarPeriodo(s.getProximaFechaCobro(), s.getFrecuencia());
+        if (!ultimoCobro.isBefore(LocalDate.now())) return false;
+
+        // Un cobro anterior a la creacion de la suscripcion no se le puede exigir al estudiante
+        if (s.getFechaCreacion() != null && ultimoCobro.isBefore(s.getFechaCreacion().toLocalDate())) return false;
 
         return !movimientoRepositorio.existsBySuscripcionIdSuscripcionAndTipoAndFechaGreaterThanEqual(
-                s.getIdSuscripcion(), "GASTO", ultimoCobro);
+                s.getIdSuscripcion(), TipoMovimiento.GASTO, ultimoCobro);
     }
 
-    private java.time.LocalDate restarPeriodo(java.time.LocalDate fecha, FrecuenciaSuscripcion frecuencia) {
+    private LocalDate restarPeriodo(LocalDate fecha, FrecuenciaSuscripcion frecuencia) {
         return switch (frecuencia) {
             case SEMANAL    -> fecha.minusWeeks(1);
             case MENSUAL    -> fecha.minusMonths(1);
             case TRIMESTRAL -> fecha.minusMonths(3);
             case SEMESTRAL  -> fecha.minusMonths(6);
             case ANUAL      -> fecha.minusYears(1);
-            default -> throw new IllegalStateException("Frecuencia no soportada: " + frecuencia);
         };
+    }
+
+    /** Busca una suscripcion solo si es del estudiante autenticado si no, 404. */
+    private Suscripcion buscarPropia(Long idSuscripcion) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+        return suscripcionRepositorio.findByIdSuscripcionAndEstudianteIdEstudiante(idSuscripcion, idEstudiante)
+                .orElseThrow(() -> new RecursoNoEncontradoException("La suscripción no existe"));
     }
 
     @Override
     @Transactional
     public SuscripcionResponseDTO editarSuscripcion(Long id, SuscripcionRequestDTO request) {
-        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
-
-        Suscripcion suscripcion = suscripcionRepositorio
-                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+        Suscripcion suscripcion = buscarPropia(id);
 
         if (suscripcion.getEstado() != EstadoSuscripcion.ACTIVA) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se pueden editar suscripciones activas");
+            throw new ReglaNegocioException("Solo se pueden editar suscripciones activas");
         }
 
         suscripcion.setNombreServicio(request.getNombreServicio());
@@ -250,41 +238,36 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         return aDTO(suscripcionRepositorio.save(suscripcion));
     }
 
-    // ===== US-31 (T-49 / END-SUB-08) =====
+    // US-31 (T-49 / END-SUB-08)
     @Override
     @Transactional
     public SuscripcionResponseDTO configurarRecordatorio(Long id, RecordatorioRequestDTO request) {
         Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
-
-        Suscripcion suscripcion = suscripcionRepositorio
-                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+        Suscripcion suscripcion = buscarPropia(id);
 
         if (suscripcion.getEstado() != EstadoSuscripcion.ACTIVA) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se pueden configurar recordatorios en suscripciones activas");
+            throw new ReglaNegocioException("Solo se pueden configurar suscripciones activas");
         }
 
-        // CORRECCIÓN AQUÍ: Cambiado a .getActivo() y .getDiasAnticipacion()
         if (Boolean.TRUE.equals(request.getActivo())) {
             if (request.getDiasAnticipacion() == null || !List.of(1, 3, 7).contains(request.getDiasAnticipacion())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Los días de anticipación deben ser 1, 3 o 7");
+                throw new ReglaNegocioException("Días de anticipación no válidos");
             }
 
-            // Validar límite para rol FREE (Máximo 3 activos)
-            boolean esFree = org.springframework.security.core.context.SecurityContextHolder.getContext()
+            // Validar límite para rol FREE (máximo 3 activos)
+            boolean esFree = SecurityContextHolder.getContext()
                     .getAuthentication().getAuthorities().stream()
                     .anyMatch(a -> a.getAuthority().contains("FREE") || a.getAuthority().contains("ROLE_FREE"));
-
 
             if (esFree) {
                 long activos = suscripcionRepositorio.countByEstudianteIdEstudianteAndEstadoAndRecordatorioActivoTrue(idEstudiante, EstadoSuscripcion.ACTIVA);
                 if (activos >= 3 && !Boolean.TRUE.equals(suscripcion.getRecordatorioActivo())) {
-                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Los usuarios Free solo pueden activar hasta 3 recordatorios en simultáneo");
+                    throw new LimitePlanException("Con el plan Free puedes activar recordatorios en hasta 3 suscripciones");
                 }
             }
 
             suscripcion.setRecordatorioActivo(true);
-            suscripcion.setDiasAnticipacion(request.getDiasAnticipacion()); // CORRECCIÓN AQUÍ
+            suscripcion.setDiasAnticipacion(request.getDiasAnticipacion());
         } else {
             suscripcion.setRecordatorioActivo(false);
             suscripcion.setDiasAnticipacion(null);
@@ -293,29 +276,17 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         return aDTO(suscripcionRepositorio.save(suscripcion));
     }
 
-    // ===== US-32 (T-51 / END-SUB-09) =====
+    // US-32 (T-51 / END-SUB-09)
     @Override
     @Transactional
     public SuscripcionResponseDTO configurarAlertaSaldo(Long id, AlertaSaldoRequestDTO request) {
-        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+        Suscripcion suscripcion = buscarPropia(id);
 
-        Suscripcion suscripcion = suscripcionRepositorio
-                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-                        org.springframework.http.HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
-
-        if (suscripcion.getEstado() != EstadoSuscripcion.ACTIVA) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.BAD_REQUEST, "Solo se pueden configurar alertas en suscripciones activas");
-        }
+        if (suscripcion.getEstado() != EstadoSuscripcion.ACTIVA) {throw new ReglaNegocioException("Solo se pueden configurar suscripciones activas");}
 
         suscripcion.setAlertaSaldoActiva(request.getActiva());
-        if (Boolean.FALSE.equals(request.getActiva())) {
-            suscripcion.setUltimaFechaAlertaSaldo(null);
-        }
+        if (Boolean.FALSE.equals(request.getActiva())) {suscripcion.setUltimaFechaAlertaSaldo(null);}
 
         return aDTO(suscripcionRepositorio.save(suscripcion));
     }
-
-
 }
