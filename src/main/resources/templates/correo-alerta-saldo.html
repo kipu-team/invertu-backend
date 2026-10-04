@@ -4,8 +4,35 @@
     <meta charset="UTF-8">
     <title>Alerta de saldo insuficiente</title>
 </head>
-<body>
-<!-- TODO: diseño del correo. Datos: Disponible actual vs. monto del proximo cobro. -->
-<h2>Alerta de saldo insuficiente</h2>
+<body style="margin:0;padding:24px;background-color:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2933;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="480" cellspacing="0" cellpadding="0"
+                   style="max-width:480px;background-color:#ffffff;border-radius:8px;padding:32px;">
+                <tr>
+                    <td>
+                        <h2 style="margin:0 0 16px;color:#b45309;">Alerta de saldo insuficiente</h2>
+                        <p style="margin:0 0 12px;">Hola <span th:text="${nombres}">estudiante</span>,</p>
+                        <p style="margin:0 0 24px;">
+                            Tu disponible (<strong th:text="${disponible}">S/ 12.00</strong>) no cubre el próximo
+                            cobro de <strong th:text="${servicio}">Spotify Premium</strong>
+                            (<strong th:text="${monto}">S/ 19.90</strong>) del
+                            <strong th:text="${fechaCobro}">05/10/2026</strong>.
+                        </p>
+                        <p style="margin:0 0 12px;font-size:14px;">
+                            El disponible es lo que te queda este mes: ingresos menos gastos y aportes a tus metas.
+                            Considera registrar un ingreso o ajustar tus gastos antes del cobro.
+                        </p>
+                        <p style="margin:0;font-size:13px;color:#6b7280;">
+                            Recibes este correo porque activaste la alerta de saldo de esta suscripción.
+                            Puedes desactivarla desde su detalle en InvertU.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
 </body>
 </html>
