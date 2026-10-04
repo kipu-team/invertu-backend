@@ -1,5 +1,6 @@
 package com.upc.invertu.serviciosimpl;
 
+import com.upc.invertu.dtos.request.AlertaSaldoRequestDTO;
 import com.upc.invertu.dtos.request.RecordatorioRequestDTO;
 import com.upc.invertu.dtos.request.SuscripcionRequestDTO;
 import com.upc.invertu.dtos.response.SuscripcionDetalleResponseDTO;
@@ -249,7 +250,7 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         return aDTO(suscripcionRepositorio.save(suscripcion));
     }
 
-    // ===== IMPLEMENTACIÓN DE LA US-31 (T-49 / END-SUB-08) =====
+    // ===== US-31 (T-49 / END-SUB-08) =====
     @Override
     @Transactional
     public SuscripcionResponseDTO configurarRecordatorio(Long id, RecordatorioRequestDTO request) {
@@ -292,6 +293,29 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         return aDTO(suscripcionRepositorio.save(suscripcion));
     }
 
+    // ===== US-32 (T-51 / END-SUB-09) =====
+    @Override
+    @Transactional
+    public SuscripcionResponseDTO configurarAlertaSaldo(Long id, AlertaSaldoRequestDTO request) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+
+        Suscripcion suscripcion = suscripcionRepositorio
+                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+
+        if (suscripcion.getEstado() != EstadoSuscripcion.ACTIVA) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Solo se pueden configurar alertas en suscripciones activas");
+        }
+
+        suscripcion.setAlertaSaldoActiva(request.getActiva());
+        if (Boolean.FALSE.equals(request.getActiva())) {
+            suscripcion.setUltimaFechaAlertaSaldo(null);
+        }
+
+        return aDTO(suscripcionRepositorio.save(suscripcion));
+    }
 
 
 }

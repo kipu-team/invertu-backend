@@ -153,5 +153,21 @@ public class SuscripcionController {
             @Valid @RequestBody SuscripcionRequestDTO request) {
         return ResponseEntity.ok(suscripcionService.editarSuscripcion(id, request));
     }
+
+    /** END-SUB-09: Configurar o apagar la alerta de saldo insuficiente */
+    @Operation(summary = "Configurar alerta de saldo (END-SUB-09)", description = "Activa o desactiva la alerta de saldo insuficiente para una suscripción activa.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Alerta de saldo configurada correctamente"),
+            @ApiResponse(responseCode = "400", description = "La suscripción no está activa"),
+            @ApiResponse(responseCode = "404", description = "Suscripción no encontrada")
+    })
+    @PutMapping("/{id}/alerta-saldo")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    public ResponseEntity<SuscripcionResponseDTO> configurarAlertaSaldo(
+            @PathVariable Long id,
+            @jakarta.validation.Valid @RequestBody com.upc.invertu.dtos.request.AlertaSaldoRequestDTO request) {
+        return ResponseEntity.ok(suscripcionService.configurarAlertaSaldo(id, request));
+    }
+
 }
 

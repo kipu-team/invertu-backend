@@ -1,5 +1,6 @@
 package com.upc.invertu.servicios;
 
+import com.upc.invertu.dtos.request.AlertaSaldoRequestDTO;
 import com.upc.invertu.dtos.request.RecordatorioRequestDTO;
 import com.upc.invertu.dtos.request.SuscripcionRequestDTO;
 import com.upc.invertu.dtos.response.SuscripcionDetalleResponseDTO;
@@ -19,5 +20,6 @@ public interface SuscripcionService {
     SuscripcionResponseDTO reactivarSuscripcion(Long id, LocalDate proximaFechaCobro);
     SuscripcionResponseDTO editarSuscripcion(Long id, SuscripcionRequestDTO request);
     SuscripcionResponseDTO configurarRecordatorio(Long id, RecordatorioRequestDTO request);
+    SuscripcionResponseDTO configurarAlertaSaldo(Long id, AlertaSaldoRequestDTO request);
 
 }
