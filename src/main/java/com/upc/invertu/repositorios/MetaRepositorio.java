@@ -21,4 +21,7 @@ public interface MetaRepositorio extends JpaRepository<Meta, Long> {
 
     /** END-GOAL-05, 06 y 07: solo encuentra la meta si pertenece al estudiante. */
     Optional<Meta> findByIdMetaAndEstudianteIdEstudiante(Long idMeta, Long idEstudiante);
+
+    /** END-DASH-01 (US-05): indica si el estudiante tiene al menos una meta, en cualquier estado. */
+    boolean existsByEstudianteIdEstudiante(Long idEstudiante);
 }

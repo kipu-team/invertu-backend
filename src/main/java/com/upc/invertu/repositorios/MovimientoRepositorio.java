@@ -39,4 +39,7 @@ public interface MovimientoRepositorio extends JpaRepository<Movimiento, Long> {
 
     /** END-TRX-04, 05 y 06: solo encuentra el movimiento si pertenece al estudiante. */
     Optional<Movimiento> findByIdMovimientoAndEstudianteIdEstudiante(Long idMovimiento, Long idEstudiante);
+
+    /** END-DASH-01 (US-05): indica si el estudiante tiene al menos un movimiento (ingreso o gasto). */
+    boolean existsByEstudianteIdEstudiante(Long idEstudiante);
 }
