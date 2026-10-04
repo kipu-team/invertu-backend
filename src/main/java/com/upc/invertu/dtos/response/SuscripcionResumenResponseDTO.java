@@ -1,14 +1,9 @@
 package com.upc.invertu.dtos.response;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** END-SUB-03 */
-
+/** END-SUB-03, cada suscripcion del listado */
 public record SuscripcionResumenResponseDTO(
         Long idSuscripcion,
         String nombreServicio,
@@ -16,5 +11,6 @@ public record SuscripcionResumenResponseDTO(
         String frecuencia,
         LocalDate proximaFechaCobro,
         String estado,
+        Boolean recordatorioActivo,
         boolean pagoSinRegistrar
 ) {}

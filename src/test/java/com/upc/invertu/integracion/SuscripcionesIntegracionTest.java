@@ -4,6 +4,7 @@ import com.upc.invertu.repositorios.MovimientoRepositorio;
 import com.upc.invertu.repositorios.SuscripcionRepositorio;
 import com.upc.invertu.seguridad.repositorios.EstudianteRepositorio;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -60,6 +61,12 @@ class SuscripcionesIntegracionTest {
         registrarEstudiante("Luis", LUIS);
     }
 
+    @AfterEach
+    void limpiar() {
+        movimientoRepositorio.deleteAll();
+        suscripcionRepositorio.deleteAll();
+        estudianteRepositorio.deleteAll();
+    }
     // Errores que antes respondian 500
 
     @Test
