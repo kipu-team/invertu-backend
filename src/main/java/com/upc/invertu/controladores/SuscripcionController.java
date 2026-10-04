@@ -137,5 +137,21 @@ public class SuscripcionController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate proximaFechaCobro) {
         return ResponseEntity.ok(suscripcionService.reactivarSuscripcion(id, proximaFechaCobro));
     }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('FREE','PREMIUM')")
+    @Operation(summary = "Editar una suscripción", description = "END-SUB-05: actualiza los datos de una suscripción activa del estudiante autenticado")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Suscripción actualizada correctamente"),
+            @ApiResponse(responseCode = "400", description = "La suscripción no está activa o los datos son inválidos"),
+            @ApiResponse(responseCode = "401", description = "No autenticado"),
+            @ApiResponse(responseCode = "403", description = "Sin permisos"),
+            @ApiResponse(responseCode = "404", description = "Suscripción no encontrada")
+    })
+    public ResponseEntity<SuscripcionResponseDTO> editarSuscripcion(
+            @PathVariable Long id,
+            @Valid @RequestBody SuscripcionRequestDTO request) {
+        return ResponseEntity.ok(suscripcionService.editarSuscripcion(id, request));
+    }
 }
 

@@ -16,5 +16,5 @@ public interface SuscripcionService {
     SuscripcionDetalleResponseDTO obtenerDetalle(Long idSuscripcion);
     SuscripcionResponseDTO cancelarSuscripcion(Long id);
     SuscripcionResponseDTO reactivarSuscripcion(Long id, LocalDate proximaFechaCobro);
-
+    SuscripcionResponseDTO editarSuscripcion(Long id, SuscripcionRequestDTO request);
 }

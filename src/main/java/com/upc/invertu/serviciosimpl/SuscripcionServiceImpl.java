@@ -225,4 +225,26 @@ public class SuscripcionServiceImpl implements SuscripcionService {
             default -> throw new IllegalStateException("Frecuencia no soportada: " + frecuencia);
         };
     }
+
+    @Override
+    @Transactional
+    public SuscripcionResponseDTO editarSuscripcion(Long id, SuscripcionRequestDTO request) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+
+        Suscripcion suscripcion = suscripcionRepositorio
+                .findByIdSuscripcionAndEstudianteIdEstudiante(id, idEstudiante)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+
+        if (suscripcion.getEstado() != EstadoSuscripcion.ACTIVA) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se pueden editar suscripciones activas");
+        }
+
+        suscripcion.setNombreServicio(request.getNombreServicio());
+        suscripcion.setDescripcion(request.getDescripcion());
+        suscripcion.setMonto(request.getMonto());
+        suscripcion.setFrecuencia(request.getFrecuencia());
+        suscripcion.setProximaFechaCobro(request.getProximaFechaCobro());
+
+        return aDTO(suscripcionRepositorio.save(suscripcion));
+    }
 }
