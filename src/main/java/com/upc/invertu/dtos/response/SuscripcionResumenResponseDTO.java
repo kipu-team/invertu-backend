@@ -4,10 +4,17 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 /** END-SUB-03 */
-@Getter
-@Setter
-@NoArgsConstructor
-public class SuscripcionResumenResponseDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
-}
+
+public record SuscripcionResumenResponseDTO(
+        Long idSuscripcion,
+        String nombreServicio,
+        BigDecimal monto,
+        String frecuencia,
+        LocalDate proximaFechaCobro,
+        String estado,
+        boolean pagoSinRegistrar
+) {}

@@ -1,10 +1,13 @@
 package com.upc.invertu.serviciosimpl;
 
 import com.upc.invertu.dtos.request.SuscripcionRequestDTO;
+import com.upc.invertu.dtos.response.SuscripcionDetalleResponseDTO;
 import com.upc.invertu.dtos.response.SuscripcionResponseDTO;
+import com.upc.invertu.dtos.response.SuscripcionResumenResponseDTO;
 import com.upc.invertu.entidades.Suscripcion;
 import com.upc.invertu.entidades.enums.EstadoSuscripcion;
 import com.upc.invertu.entidades.enums.FrecuenciaSuscripcion;
+import com.upc.invertu.repositorios.MovimientoRepositorio;
 import com.upc.invertu.repositorios.SuscripcionRepositorio;
 import com.upc.invertu.seguridad.entidades.Estudiante;
 import com.upc.invertu.seguridad.utilidades.EstudianteAutenticado;
@@ -23,6 +26,9 @@ public class SuscripcionServiceImpl implements SuscripcionService {
 
     @Autowired
     private SuscripcionRepositorio suscripcionRepositorio;
+
+    @Autowired
+    private MovimientoRepositorio movimientoRepositorio;
 
     @Autowired
     private EstudianteAutenticado estudianteAutenticado;
@@ -77,7 +83,74 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         dto.setFechaActualizacion(suscripcion.getFechaActualizacion());
         return dto;
     }
+    // ===== IMPLEMENTACIÓN DE LA US-27 (END-SUB-03) =====
+    @Override
+    @Transactional(readOnly = true)
+    public List<SuscripcionResumenResponseDTO> listar(String estado) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
 
+        List<Suscripcion> suscripciones;
+        if (estado == null || estado.isBlank()) {
+            suscripciones = suscripcionRepositorio
+                    .findByEstudianteIdEstudianteOrderByProximaFechaCobroAsc(idEstudiante);
+        } else {
+            String estadoNorm = estado.trim().toUpperCase();
+            try {
+                EstadoSuscripcion enumEstado = EstadoSuscripcion.valueOf(estadoNorm);
+                suscripciones = suscripcionRepositorio
+                        .findByEstudianteIdEstudianteAndEstadoOrderByProximaFechaCobroAsc(idEstudiante, enumEstado);
+            } catch (IllegalArgumentException e) {
+                throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                        "Estado inválido. Valores permitidos: ACTIVA, CANCELADA");
+            }
+        }
+
+        return suscripciones.stream()
+                .map(s -> new SuscripcionResumenResponseDTO(
+                        s.getIdSuscripcion(),
+                        s.getNombreServicio(),
+                        s.getMonto(),
+                        String.valueOf(s.getFrecuencia()),
+                        s.getProximaFechaCobro(),
+                        String.valueOf(s.getEstado()),
+                        calcularPagoSinRegistrar(s)))
+                .toList();
+    }
+
+    // ===== IMPLEMENTACIÓN DE LA US-27 (END-SUB-04) =====
+    @Override
+    @Transactional(readOnly = true)
+    public SuscripcionDetalleResponseDTO obtenerDetalle(Long idSuscripcion) {
+        Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
+
+        Suscripcion s = suscripcionRepositorio
+                .findByIdSuscripcionAndEstudianteIdEstudiante(idSuscripcion, idEstudiante)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
+
+        List<SuscripcionDetalleResponseDTO.PagoHistorialDTO> pagos = movimientoRepositorio
+                .findBySuscripcionIdSuscripcionOrderByFechaDesc(s.getIdSuscripcion())
+                .stream()
+                .map(m -> new SuscripcionDetalleResponseDTO.PagoHistorialDTO(
+                        m.getFecha(), 
+                        m.getMonto(), 
+                        m.getMedioPago() != null ? m.getMedioPago().name() : "OTRO"))
+                .toList();
+
+        return new SuscripcionDetalleResponseDTO(
+                s.getIdSuscripcion(),
+                s.getNombreServicio(),
+                s.getDescripcion(),
+                s.getMonto(),
+                String.valueOf(s.getFrecuencia()),
+                s.getProximaFechaCobro(),
+                String.valueOf(s.getEstado()),
+                s.getFechaCreacion(),
+                calcularPagoSinRegistrar(s),
+                pagos);
+    }
+
+    // ===== IMPLEMENTACIÓN DE LA US-30 (END-SUB-06) =====
     @Override
     @Transactional
     public SuscripcionResponseDTO cancelarSuscripcion(Long id) {
@@ -102,6 +175,7 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         return aDTO(suscripcionRepositorio.save(suscripcion));
     }
 
+    // ===== IMPLEMENTACIÓN DE LA US-30 (END-SUB-07) =====
     @Override
     @Transactional
     public SuscripcionResponseDTO reactivarSuscripcion(Long id, LocalDate proximaFechaCobro) {
@@ -127,5 +201,28 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         suscripcion.setProximaFechaCobro(proximaFechaCobro);
 
         return aDTO(suscripcionRepositorio.save(suscripcion));
+    }
+
+    // ---------- Métodos Auxiliares para el cálculo ----------
+
+    private boolean calcularPagoSinRegistrar(Suscripcion s) {
+        if (s.getEstado() != EstadoSuscripcion.ACTIVA || s.getProximaFechaCobro() == null) return false;
+
+        java.time.LocalDate ultimoCobro = restarPeriodo(s.getProximaFechaCobro(), s.getFrecuencia());
+        if (!ultimoCobro.isBefore(java.time.LocalDate.now())) return false;
+
+        return !movimientoRepositorio.existsBySuscripcionIdSuscripcionAndTipoAndFechaGreaterThanEqual(
+                s.getIdSuscripcion(), "GASTO", ultimoCobro);
+    }
+
+    private java.time.LocalDate restarPeriodo(java.time.LocalDate fecha, FrecuenciaSuscripcion frecuencia) {
+        return switch (frecuencia) {
+            case SEMANAL    -> fecha.minusWeeks(1);
+            case MENSUAL    -> fecha.minusMonths(1);
+            case TRIMESTRAL -> fecha.minusMonths(3);
+            case SEMESTRAL  -> fecha.minusMonths(6);
+            case ANUAL      -> fecha.minusYears(1);
+            default -> throw new IllegalStateException("Frecuencia no soportada: " + frecuencia);
+        };
     }
 }
