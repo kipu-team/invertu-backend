@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Recupera tu contraseña</title>
+</head>
+<body style="margin:0;padding:24px;background-color:#f4f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2933;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="480" cellspacing="0" cellpadding="0"
+                   style="max-width:480px;background-color:#ffffff;border-radius:8px;padding:32px;">
+                <tr>
+                    <td>
+                        <h2 style="margin:0 0 16px;color:#0b5394;">Recupera tu contraseña</h2>
+                        <p style="margin:0 0 12px;">Hola <span th:text="${nombres}">estudiante</span>,</p>
+                        <p style="margin:0 0 24px;">
+                            Recibimos una solicitud para restablecer la contraseña de tu cuenta de InvertU.
+                            Haz clic en el botón para crear una nueva.
+                        </p>
+                        <p style="margin:0 0 24px;text-align:center;">
+                            <a th:href="${enlace}" href="#"
+                               style="display:inline-block;padding:12px 24px;background-color:#0b5394;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">
+                                Restablecer contraseña
+                            </a>
+                        </p>
+                        <p style="margin:0 0 12px;font-size:14px;">
+                            El enlace vence en <strong th:text="${minutos} + ' minutos'">30 minutos</strong>
+                            y solo se puede usar una vez.
+                        </p>
+                        <p style="margin:0;font-size:13px;color:#6b7280;">
+                            Si no solicitaste este cambio, ignora este correo: tu contraseña no cambiará.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>
