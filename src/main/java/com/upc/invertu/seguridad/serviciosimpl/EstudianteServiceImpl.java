@@ -29,7 +29,6 @@ import com.upc.invertu.seguridad.utilidades.JwtUtil;
 
 @Service
 public class EstudianteServiceImpl implements EstudianteService {
-    // TODO: implementar las reglas de negocio
 
     @Autowired
     private EstudianteRepositorio estudianteRepositorio;
