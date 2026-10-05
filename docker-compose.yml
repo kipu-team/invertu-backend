@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: postgres-db
+    environment:
+      POSTGRES_DB: db_invertu
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - datos_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d db_invertu"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build: .
+    container_name: springboot-api
+    ports:
+      - "8080:8080"
+    env_file: .env
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/db_invertu
+      ALMACENAMIENTO_RUTA: /app/comprobantes
+    volumes:
+      - comprobantes:/app/comprobantes
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  datos_db:
+  comprobantes:
