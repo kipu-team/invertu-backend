@@ -17,7 +17,6 @@ import java.math.BigDecimal;
 @Setter
 @NoArgsConstructor
 public class MovimientoRequestDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
     @NotNull(message = "Selecciona si es ingreso o gasto")
     private TipoMovimiento tipo;
 

@@ -10,7 +10,6 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class AlertaSaldoRequestDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
     @NotNull(message = "El campo activa es obligatorio")
     private Boolean activa;
 }

@@ -11,6 +11,5 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MensajeResponseDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
     private String mensaje;
 }

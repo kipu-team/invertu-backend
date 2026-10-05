@@ -11,7 +11,6 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class CategoriaRequestDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
     @NotBlank(message = "Ingresa un nombre")
     @Size(max = 80, message = "El nombre puede tener como máximo 80 caracteres")
     private String nombre;

@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/perfil")
 public class EstudianteController {
-    // TODO: endpoints del modulo
 
     @Autowired
     private EstudianteService estudianteService;

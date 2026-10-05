@@ -13,7 +13,6 @@ import java.time.LocalDate;
 @Setter
 @NoArgsConstructor
 public class MovimientoResponseDTO {
-    // TODO: atributos segun la tabla de endpoints del informe (seccion 2.3)
     private Long idMovimiento;
     private TipoMovimiento tipo;
     private String descripcion;
