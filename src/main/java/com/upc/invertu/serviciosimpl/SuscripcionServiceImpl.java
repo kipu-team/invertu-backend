@@ -121,7 +121,7 @@ public class SuscripcionServiceImpl implements SuscripcionService {
         Long idEstudiante = estudianteAutenticado.obtener().getIdEstudiante();
 
         Suscripcion s = suscripcionRepositorio
-                .findByIdSuscripcionAndEstudianteTdEstudiante(idSuscripcion, idEstudiante)
+                .findByIdSuscripcionAndEstudianteIdEstudiante(idSuscripcion, idEstudiante)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Suscripción no encontrada"));
 
