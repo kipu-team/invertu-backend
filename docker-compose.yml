@@ -2,6 +2,7 @@ services:
   db:
     image: postgres:16-alpine
     container_name: postgres-db
+    restart: unless-stopped
     environment:
       POSTGRES_DB: db_invertu
       POSTGRES_USER: ${DB_USERNAME}
@@ -16,6 +17,7 @@ services:
   backend:
     build: .
     container_name: springboot-api
+    restart: unless-stopped
     ports:
       - "8080:8080"
     env_file: .env
