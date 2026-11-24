@@ -10,6 +10,8 @@ import com.upc.invertu.servicios.CorreoService;
 import com.upc.invertu.utilidades.FormatoCorreo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -34,6 +36,13 @@ public class RecordatorioCobroTarea {
     @Scheduled(cron = "0 0 8 * * *", zone = "America/Lima")
     public void ejecutar() {
         procesar(LocalDate.now(ZONA_LIMA));
+    }
+
+    /** Al iniciar el backend (el lab de AWS apaga el servidor), se ponen al día las fechas vencidas. No envía correos. */
+    @EventListener(ApplicationReadyEvent.class)
+    public void alIniciar() {
+        int avanzadas = avanzarFechasVencidas(LocalDate.now(ZONA_LIMA));
+        log.info("Al iniciar: {} fechas de cobro actualizadas", avanzadas);
     }
 
     /** Separado de ejecutar() para poder probarlo con cualquier fecha */
